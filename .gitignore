@@ -1,0 +1,34 @@
+.DS_Store
+.idea/
+.vscode/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+
+# Raw footage and generated derivatives must not be committed.
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.mkv
+*.avi
+*.wav
+*.mp3
+proxy_frames_*/
+contact_sheets/
+previews/
+transcripts/
+output/
+artifacts/
+
+# Local inventories can contain absolute paths.
+inventory.csv
+inventory.json
+*.local.csv
+*.local.json

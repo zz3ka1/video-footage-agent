@@ -1,0 +1,8 @@
+"""Editorial audio states used by downstream script and editing indexes."""
+
+ORIGINAL_GUIDE = "ORIGINAL_GUIDE"
+AMBIENT_LOW = "AMBIENT_LOW"
+MUTE_VO = "MUTE_VO"
+MUTE_DELETE = "MUTE_DELETE"
+
+AUDIO_MODES = (ORIGINAL_GUIDE, AMBIENT_LOW, MUTE_VO, MUTE_DELETE)
