@@ -5,12 +5,11 @@ from __future__ import annotations
 import csv
 import json
 import re
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable, Iterable
 
 from video_footage_agent.media import probe_media, video_stream
-
 
 DEFAULT_EXTENSIONS = (".mp4", ".mov", ".mkv", ".avi", ".m4v")
 

@@ -175,6 +175,10 @@ def measure_frames(paths: list[Path], *, sample_fps: float = 1.0) -> list[dict]:
     return rows
 
 
+def _median_metric(rows: list[dict], key: str) -> float:
+    return float(np.median([row[key] for row in rows]))
+
+
 def group_windows(
     rows: list[dict], duration: float, *, window_seconds: int = 10
 ) -> list[dict]:
@@ -197,9 +201,6 @@ def group_windows(
             continue
         start = index * window_seconds
         end = min(duration, start + window_seconds)
-
-        def median(key: str) -> float:
-            return float(np.median([row[key] for row in sample]))
 
         low_sharp_ratio = float(
             np.mean([row["sharpness"] <= sharp_p10 for row in sample])
@@ -224,9 +225,9 @@ def group_windows(
             flags.append("overexposed")
         if low_sharp_ratio >= 0.5:
             flags.append("soft_or_blurred")
-        if median("frame_change") < 2.0:
+        if _median_metric(sample, "frame_change") < 2.0:
             flags.append("nearly_static")
-        if median("frame_change") > 42.0:
+        if _median_metric(sample, "frame_change") > 42.0:
             flags.append("large_visual_change")
 
         if dark_problem_ratio >= 0.8 or bright_problem_ratio >= 0.8:
@@ -242,9 +243,9 @@ def group_windows(
                 "end_second": round(end, 3),
                 "start": format_time(start),
                 "end": format_time(end),
-                "brightness_median": median("brightness"),
-                "sharpness_median": median("sharpness"),
-                "frame_change_median": median("frame_change"),
+                "brightness_median": _median_metric(sample, "brightness"),
+                "sharpness_median": _median_metric(sample, "sharpness"),
+                "frame_change_median": _median_metric(sample, "frame_change"),
                 "low_sharp_ratio": low_sharp_ratio,
                 "technical_status": status,
                 "flags": ",".join(flags),
