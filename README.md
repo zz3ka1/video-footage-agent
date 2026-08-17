@@ -149,6 +149,7 @@ footage-agent consolidate artifacts/inventory.csv /path/to/all-parts \
 | 状态 | 含义 |
 |---|---|
 | `ORIGINAL_GUIDE` | 保留讲解或现场主要原声 |
+| `ORIGINAL_FILM` | 保留电影片段的同步对白、音乐和环境声；须遵守项目片段使用规则 |
 | `AMBIENT_LOW` | 降低原声音量，只保留环境感 |
 | `MUTE_VO` | 静音，改用旁白 |
 | `MUTE_DELETE` | 不进入时间线 |
@@ -157,7 +158,7 @@ footage-agent consolidate artifacts/inventory.csv /path/to/all-parts \
 
 ## 稿件生成规范
 
-- [`docs/script-style-guide.zh-CN.md`](docs/script-style-guide.zh-CN.md)：面向人类的完整写稿规范，覆盖两种任务模式、事实核验、叙事风格、术语、素材标注、音频策略、人工复核和净稿红线。
+- [`docs/script-style-guide.zh-CN.md`](docs/script-style-guide.zh-CN.md)：面向人类的完整写稿规范，覆盖选题优先、实拍素材优先和电影原片优先三种任务模式，以及事实核验、叙事风格、术语、素材标注、音频策略、人工复核和净稿红线。
 - [`prompts/script-writer.zh-CN.md`](prompts/script-writer.zh-CN.md)：写稿 Agent 可直接使用的严格提示词，定义输入校验、运行状态、六文件输出协议和质量门。
 
 当前 CLI 负责素材整理、技术粗筛和转写，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。

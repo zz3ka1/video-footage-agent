@@ -4,6 +4,8 @@
 
 - Added a complete Chinese script style guide for topic-first and footage-first projects.
 - Added a strict Script Writer Agent prompt with validated inputs, evidence states, six-file outputs, and recording-readiness gates.
+- Added a film-first task mode for fixed-duration movie sources, cast/character verification, spoiler policy, and limited supplementary web assets.
+- Added the `ORIGINAL_FILM` audio mode for retained synchronized film audio.
 
 ## 0.1.0
 

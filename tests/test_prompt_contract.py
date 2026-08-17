@@ -27,6 +27,7 @@ EXPECTED_EDITING_INDEX_HEADER = [
     "license_status",
     "attribution",
 ]
+TASK_MODES = ("TOPIC_FIRST", "FOOTAGE_FIRST", "FILM_FIRST")
 
 
 def test_script_documents_exist_and_have_balanced_fences() -> None:
@@ -42,6 +43,32 @@ def test_prompt_uses_the_code_audio_modes() -> None:
     for mode in AUDIO_MODES:
         assert f"`{mode}`" in prompt
         assert f"`{mode}`" in guide
+
+
+def test_task_modes_are_documented_in_both_contracts() -> None:
+    prompt = AGENT_PROMPT.read_text(encoding="utf-8")
+    guide = STYLE_GUIDE.read_text(encoding="utf-8")
+    for mode in TASK_MODES:
+        assert f"`{mode}`" in prompt
+        assert f"`{mode}`" in guide
+
+
+def test_film_mode_contract_is_complete() -> None:
+    prompt = AGENT_PROMPT.read_text(encoding="utf-8")
+    guide = STYLE_GUIDE.read_text(encoding="utf-8")
+    required_terms = (
+        "FILM_SOURCE",
+        "REFERENCE_ONLY",
+        "film_analysis_coverage",
+        "spoiler_policy",
+        "film_clip_policy",
+        "max_web_assets",
+        "cast_focus",
+        "other_works_scope",
+    )
+    for term in required_terms:
+        assert term in prompt
+        assert term in guide
 
 
 def test_editing_index_template_matches_prompt_contract() -> None:

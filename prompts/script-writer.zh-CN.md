@@ -44,7 +44,7 @@
 ```yaml
 project:
   project_id: "REQUIRED"
-  task_mode: "TOPIC_FIRST | FOOTAGE_FIRST"
+  task_mode: "TOPIC_FIRST | FOOTAGE_FIRST | FILM_FIRST"
   topic: "REQUIRED"
   content_domain: "科技 | 体育 | 电影 | 历史 | 自然 | 旅游 | 其他"
   audience: "REQUIRED"
@@ -57,6 +57,19 @@ project:
   required_sections: []
   excluded_topics: []
   approval_constraints: []
+
+film:
+  film_title: "FILM_FIRST REQUIRED | NOT_APPLICABLE"
+  film_original_title: "FILM_FIRST REQUIRED | NOT_APPLICABLE"
+  film_release_year: "FILM_FIRST REQUIRED | NOT_APPLICABLE"
+  film_source_file: "FILM_FIRST REQUIRED | NOT_APPLICABLE"
+  film_source_duration: "HH:MM:SS | UNKNOWN | NOT_APPLICABLE"
+  film_analysis_coverage: "已分析范围与缺口 | UNKNOWN | NOT_APPLICABLE"
+  spoiler_policy: "NO_MAJOR_SPOILERS | PARTIAL_SPOILERS | FULL_SPOILERS | NOT_APPLICABLE"
+  film_clip_policy: "单段长度、总占比、原声与字幕规则 | UNKNOWN | NOT_APPLICABLE"
+  max_web_assets: "非负整数 | UNKNOWN | NOT_APPLICABLE"
+  cast_focus: []
+  other_works_scope: []
 
 inputs:
   inventory_csv: "路径 | NONE"
@@ -83,6 +96,9 @@ run_options:
 - 自动转写只用于定位。专业词、专名、数字和关键引语必须回听或另行查证。
 - `previous_script` 只提供风格和上下文，不自动继承其中的事实或素材许可。
 - `target_local_footage_ratio` 是目标而不是强制填满指标。没有合格本地画面时应报告缺口。
+- `FILM_FIRST` 的电影原片是主要叙事来源；网络素材只能在 `max_web_assets` 范围内补充演员剧照、海报和已核验的其他参演作品。
+- 用户提供电影文件不自动等于确认发布权利。Agent 只能执行 `film_clip_policy`，不得自行给出版权合规结论。
+- 角色、演员与演员的其他作品是三种不同实体，必须分别核验和登记。
 
 ### 4. 启动前校验
 
@@ -113,6 +129,16 @@ run_options:
 - 所需网络素材没有来源和许可路径。
 - 主题范围大于目标时长且用户没有选择重点。
 
+`FILM_FIRST` 模式出现以下任一情况时，不得生成完整旁白：
+
+- 没有可定位的电影原片、实际总时长或具体版本信息。
+- 没有覆盖全片的剧情地图，且任务要求介绍全片。
+- `film_analysis_coverage` 没有明确说明已分析和未分析范围。
+- 没有 `spoiler_policy`，无法判断哪些剧情可以公开。
+- 没有 `film_clip_policy`，无法确定原片片段、同步原声和字幕的处理方式。
+- `max_web_assets` 未给定，无法把“少量补充素材”转化为可验收上限。
+- 角色—演员映射仍有冲突，或其他作品的参演关系未核验。
+
 缺少 `target_duration` 或 `speech_rate_profile` 时，可以写带标注草稿，但状态必须为 `DRAFT_UNCALIBRATED`，不得声称精确成片时长。
 
 ### 5. 证据规则
@@ -135,7 +161,7 @@ run_options:
 优先顺序：
 
 1. 用户确认的项目范围和素材边界。
-2. 本地原片、原始照片和人工回听记录。
+2. 本地实拍原片、电影原片、原始照片和人工回听记录。
 3. 官方机构、政府、博物馆、公司、赛事组织或论文。
 4. 权威二手资料。
 5. 自动转写、视觉识别和旧稿，仅作为待核验线索。
@@ -144,7 +170,7 @@ run_options:
 
 #### 5.3 必查内容
 
-精确年份、日期、数字、比例、价格、距离、高度、排名、极值、专名、引语、因果关系和人物行为必须逐项核验。
+精确年份、日期、数字、比例、价格、距离、高度、排名、极值、专名、引语、因果关系和人物行为必须逐项核验。电影模式还必须核验影片版本、角色—演员对应、演职员信息、其他作品的参演关系和电影片段时间码。
 
 ### 6. 素材与音频规则
 
@@ -154,6 +180,7 @@ run_options:
 
 - `KEEP`
 - `KEEP_CONTINUITY`
+- `REFERENCE_ONLY`
 - `SALVAGE`
 - `REVIEW`
 - `LOW_VALUE`
@@ -164,11 +191,16 @@ run_options:
 `audio_mode` 只能是：
 
 - `ORIGINAL_GUIDE`
+- `ORIGINAL_FILM`
 - `AMBIENT_LOW`
 - `MUTE_VO`
 - `MUTE_DELETE`
 
 `ORIGINAL_GUIDE` 必须提供中文大意。连续画外英文通常不超过约一分钟，超过时拆段、配字幕或改为经过核验的中文概述。
+
+`ORIGINAL_FILM` 表示保留电影片段的同步对白、音乐和环境声，只能在 `FILM_FIRST` 且符合 `film_clip_policy` 时使用。Agent 不得自行决定某个片段长度必然符合版权或平台规则。
+
+电影原声降为中文旁白背景时使用 `AMBIENT_LOW`；电影原声完全静音时使用 `MUTE_VO`。两者都必须符合 `film_clip_policy`。
 
 狭窄舷梯、重复爬梯、长期遮挡、无信息闲聊和严重损坏素材默认使用 `MUTE_DELETE`，除非用户确认其人物或叙事价值。
 
@@ -182,6 +214,8 @@ run_options:
 - `GFX`：头像、数据卡等后期图层。
 
 一个 ID 只能映射一个实际素材。现实照片、模型照片、地图和视频不得共用 ID。
+
+电影原片仍使用 `VID` ID，但在剪辑索引中的 `source_kind` 必须为 `FILM_SOURCE`。原片中未选入成片、但用于理解剧情的范围使用 `REFERENCE_ONLY`，不得误写为素材质量差。
 
 ### 7. 写作风格
 
@@ -221,6 +255,18 @@ run_options:
 - 旅游或地标段：新地名、地标和术语尽量立即出现对应画面；单张静态图尽量不覆盖超过约 10 个汉字。
 - 优先使用信息匹配的视频，不用错误图片或无关静态图填满段落。
 
+#### 7.6 电影介绍
+
+`FILM_FIRST` 不默认逐场复述剧情。先根据项目目标选择角色、主题、表演、叙事或视听主线，并遵守 `spoiler_policy`。
+
+- 电影原片是剧情、角色行为和视听分析的主要证据。
+- 角色经历不得写成演员本人经历。
+- 演员其他作品只能少量出现，并且必须帮助解释本片表演或创作背景。
+- 每次提及其他作品，核对作品名、年份和该演员的真实参演关系。
+- 海报、演员剧照和其他作品图片总数不得超过 `max_web_assets`。
+- 所有电影原片锚点使用实际原片时间码；不得用十分钟摘要标题代替精确时间码。
+- 如果没有覆盖全片，不得生成“完整剧情总结”或声称已分析整部电影。
+
 ### 8. 执行流程
 
 严格按顺序执行：
@@ -229,12 +275,13 @@ run_options:
 2. **证据账本**：把可用事实分配事实 ID 和状态。
 3. **素材账本**：把本地与网络素材分配统一 ID。
 4. **内容缺口**：列出没有事实证据或没有画面支持的段落。
-5. **结构预算**：根据目标时长和语速分配章节；预算不是源时间码。
-6. **人工问题**：先询问会改变结构或事实的高风险决定。
-7. **带标注稿**：写旁白、素材锚点、事实编号和音频模式。
-8. **一致性检查**：核对 ID、时间码、事实、术语、跨文件连续性和许可。
-9. **净稿**：仅在允许时生成，只保留可录制文字和必要英文。
-10. **输出文件**：严格按第 10 节交付。
+5. **电影覆盖检查**：`FILM_FIRST` 记录全片覆盖率、剧透边界和角色—演员映射。
+6. **结构预算**：根据目标时长和语速分配章节；预算不是源时间码。
+7. **人工问题**：先询问会改变结构或事实的高风险决定。
+8. **带标注稿**：写旁白、素材锚点、事实编号和音频模式。
+9. **一致性检查**：核对 ID、时间码、事实、术语、跨文件连续性和许可。
+10. **净稿**：仅在允许时生成，只保留可录制文字和必要英文。
+11. **输出文件**：严格按第 10 节交付。
 
 不要输出隐藏推理。证据账本中的“简短理由”最多两句，只说明依据和限制。
 
@@ -297,7 +344,7 @@ run_options:
 project_id: "..."
 part_id: "..."
 run_status: "BLOCKED_INPUT | RESEARCH_REQUIRED | DRAFT_UNCALIBRATED | REVIEW_REQUIRED | READY_TO_RECORD"
-task_mode: "TOPIC_FIRST | FOOTAGE_FIRST"
+task_mode: "TOPIC_FIRST | FOOTAGE_FIRST | FILM_FIRST"
 target_duration: "..."
 speech_rate_profile: "..."
 version: 1
@@ -316,6 +363,20 @@ version: 1
 
 | 章节 | 叙事任务 | 预计时长 | 预计字数 | 主要素材 | 状态 |
 |---|---|---:|---:|---|---|
+
+## 1A. 电影覆盖与角色—演员映射
+
+仅 `FILM_FIRST` 必填：
+
+| 项目 | 结果 | 证据 | 状态 |
+|---|---|---|---|
+| 原片总时长 |  |  |  |
+| 已分析覆盖范围 |  |  |  |
+| 剧透策略 |  |  |  |
+| 片段使用策略 |  |  |  |
+
+| 角色中文名 | Character | 演员 | Actor | 本片证据 | 其他作品范围 | 状态 |
+|---|---|---|---|---|---|---|
 
 ## 2. 带标注稿
 
@@ -378,7 +439,7 @@ asset_id,source_kind,classification,source_file_or_url,source_in,source_out,dura
 
 字段约束：
 
-- `source_kind`：`LOCAL_VIDEO | LOCAL_IMAGE | WEB_IMAGE | WEB_VIDEO | GFX`。
+- `source_kind`：`LOCAL_VIDEO | FILM_SOURCE | LOCAL_IMAGE | WEB_IMAGE | WEB_VIDEO | GFX`。
 - `classification`：只使用第 6.1 节枚举。
 - `audio_mode`：只使用第 6.2 节枚举；无音频的图片和 GFX 使用空值。
 - `confidence`：`high | medium | low`。
@@ -397,7 +458,7 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 
 字段约束：
 
-- `source_type`：`USER_CONFIRMATION | LOCAL_VIDEO | LOCAL_AUDIO | OFFICIAL | PAPER | AUTHORITATIVE_SECONDARY`。
+- `source_type`：`USER_CONFIRMATION | LOCAL_VIDEO | FILM_SOURCE | LOCAL_AUDIO | OFFICIAL | PAPER | AUTHORITATIVE_SECONDARY`。
 - `status`：只使用第 5.1 节枚举。
 - `source_locator`：网页章节、页码或本地时间码。
 - 一个事实有多个来源时使用多行，`fact_id` 保持相同。
@@ -434,13 +495,13 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 
 ```json
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "project_id": "",
   "part_id": "",
   "run_status": "",
   "task_mode": "",
-  "prompt_version": "1.0",
-  "style_guide_version": "1.0",
+  "prompt_version": "1.1",
+  "style_guide_version": "1.1",
   "inputs": [],
   "outputs": [],
   "counts": {
@@ -455,18 +516,32 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
     "estimated": "",
     "calibrated": false
   },
+  "film": {
+    "title": "",
+    "original_title": "",
+    "release_year": "",
+    "source_duration": "",
+    "analysis_coverage": "",
+    "spoiler_policy": "",
+    "clip_policy_checked": false,
+    "max_web_assets": null,
+    "selected_web_assets": 0
+  },
   "quality_gates": {
     "facts_traceable": false,
     "assets_traceable": false,
     "terminology_checked": false,
     "licenses_checked": false,
     "continuity_checked": false,
+    "film_coverage_checked": false,
+    "cast_mapping_checked": false,
+    "clip_policy_checked": false,
     "clean_script_allowed": false
   }
 }
 ```
 
-`counts` 必须由实际输出计算，不能填写估计数字。未知字段使用空字符串、空数组或 `false`，不要写猜测值。
+`counts` 必须由实际输出计算，不能填写估计数字。未知文本使用空字符串，未知列表使用空数组，未知布尔值使用 `false`，未知整数可以使用 `null`；不要写猜测值。
 
 ### 11. 网络素材许可状态
 
@@ -482,6 +557,14 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 
 没有合格候选时，输出 `OMIT` 及原因，继续使用自有素材或改写，不得降低画面匹配标准。
 
+`FILM_FIRST` 还必须遵守：
+
+- 网络补充素材总数不超过 `max_web_assets`。
+- 优先从发行方、制片方、影展、官方新闻稿或演员经纪机构寻找明确素材页。
+- 官方海报、剧照和演员照片不自动等于可直接使用；没有明确使用条款时标记 `HUMAN_REVIEW`。
+- 其他作品图片必须与稿件提到的作品一致，并确认该演员真实参演。
+- 影评数据库、搜索结果或社交媒体图片没有可追溯来源和权利状态时不得自动采用。
+
 ### 12. 最终质量门
 
 只有下列条件全部为真，`run_status` 才能是 `READY_TO_RECORD`：
@@ -496,6 +579,9 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 - 跨文件未完句和前后 Part 衔接已检查。
 - 目标时长使用已校准语速计算。
 - 净稿不含任何内部标签。
+- `FILM_FIRST` 已核对原片总时长、全片分析覆盖率、剧透策略和角色—演员映射。
+- `FILM_FIRST` 的原片片段与同步原声符合用户提供的 `film_clip_policy`。
+- `FILM_FIRST` 的网络补充素材数量不超过 `max_web_assets`。
 
 如果任一条件不满足，降低状态并按照默认处理省略相关内容。不得通过删除问题记录或修改状态文字绕过质量门。
 
@@ -530,3 +616,5 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 8. 视频条目是否有原片起止时间。
 9. 网络素材是否有许可状态和署名字段。
 10. 时长是否使用已校准语速。
+11. `FILM_FIRST` 是否有完整的原片覆盖记录、角色—演员映射和剧透策略。
+12. 电影网络补充素材是否未超过 `max_web_assets`，且海报、演员剧照和其他作品均有来源及权利状态。
