@@ -58,3 +58,22 @@ def test_parser_supports_main_commands() -> None:
         ).command
         == "film-draft"
     )
+    generated = parser.parse_args(
+        [
+            "film-generate",
+            "draft-package",
+            "--output",
+            "generated",
+            "--model",
+            "explicit-model",
+            "--reasoning-effort",
+            "high",
+            "--verbosity",
+            "high",
+            "--max-output-tokens",
+            "5000",
+        ]
+    )
+    assert generated.command == "film-generate"
+    assert generated.model == "explicit-model"
+    assert generated.max_output_tokens == 5000

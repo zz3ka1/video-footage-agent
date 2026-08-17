@@ -22,6 +22,9 @@ dev = [
 whisper = [
   "openai-whisper>=20240930",
 ]
+openai = [
+  "openai>=1.66",
+]
 
 [project.scripts]
 footage-agent = "video_footage_agent.cli:main"

@@ -11,6 +11,11 @@ from pathlib import Path
 from video_footage_agent import __version__
 from video_footage_agent.consolidate import execute_consolidation
 from video_footage_agent.film_draft import prepare_film_draft
+from video_footage_agent.film_generate import (
+    OpenAIResponsesProvider,
+    ResponseFileProvider,
+    generate_film_draft,
+)
 from video_footage_agent.film_project import initialize_film_project
 from video_footage_agent.human_insights import require_valid_human_insights
 from video_footage_agent.inventory import (
@@ -50,6 +55,13 @@ def _non_negative_int(value: str) -> int:
         raise argparse.ArgumentTypeError("Value must be an integer") from exc
     if number < 0:
         raise argparse.ArgumentTypeError("Value must be non-negative")
+    return number
+
+
+def _positive_int(value: str) -> int:
+    number = _non_negative_int(value)
+    if number == 0:
+        raise argparse.ArgumentTypeError("Value must be positive")
     return number
 
 
@@ -183,6 +195,32 @@ def build_parser() -> argparse.ArgumentParser:
     film_draft.add_argument("--style-guide", type=Path)
     film_draft.add_argument("--verify-source-hash", action="store_true")
     film_draft.set_defaults(handler=_handle_film_draft)
+
+    film_generate = subparsers.add_parser(
+        "film-generate",
+        help="Generate, validate, and atomically write the six film script files",
+    )
+    film_generate.add_argument("draft_package", type=Path)
+    film_generate.add_argument("--output", type=Path, required=True)
+    film_generate.add_argument(
+        "--provider", choices=("openai", "response-file"), default="openai"
+    )
+    film_generate.add_argument(
+        "--model",
+        help="Required for OpenAI; choose an available model explicitly",
+    )
+    film_generate.add_argument(
+        "--response-file",
+        type=Path,
+        help="Required with --provider response-file; no API call is made",
+    )
+    film_generate.add_argument(
+        "--reasoning-effort",
+        choices=("none", "low", "medium", "high", "xhigh", "max"),
+    )
+    film_generate.add_argument("--verbosity", choices=("low", "medium", "high"))
+    film_generate.add_argument("--max-output-tokens", type=_positive_int)
+    film_generate.set_defaults(handler=_handle_film_generate)
     return parser
 
 
@@ -326,6 +364,41 @@ def _handle_film_draft(args: argparse.Namespace) -> dict:
         strict_prompt=args.strict_prompt,
         style_guide=args.style_guide,
         verify_source_hash=args.verify_source_hash,
+    )
+
+
+def _handle_film_generate(args: argparse.Namespace) -> dict:
+    if args.provider == "openai":
+        if not args.model:
+            raise ValueError("--model is required with --provider openai")
+        if args.response_file is not None:
+            raise ValueError("--response-file can only be used with response-file provider")
+        provider = OpenAIResponsesProvider(
+            model=args.model,
+            reasoning_effort=args.reasoning_effort,
+            verbosity=args.verbosity,
+            max_output_tokens=args.max_output_tokens,
+        )
+    else:
+        if args.response_file is None:
+            raise ValueError("--response-file is required with --provider response-file")
+        if any(
+            value is not None
+            for value in (
+                args.model,
+                args.reasoning_effort,
+                args.verbosity,
+                args.max_output_tokens,
+            )
+        ):
+            raise ValueError(
+                "model generation options cannot be used with response-file provider"
+            )
+        provider = ResponseFileProvider(args.response_file)
+    return generate_film_draft(
+        args.draft_package,
+        args.output,
+        provider=provider,
     )
 
 

@@ -10,6 +10,7 @@
 - Added a machine-readable long-form movie style profile derived from a legacy script without reusing its lost timecodes, unverified facts, or asset rights.
 - Added human insight cards and `film-insights-validate` to separate fact claims, interpretations, editorial directions, and unresolved questions.
 - Added `film-draft` in explicit `PREPARE_ONLY` mode to validate film inputs and build a traceable, self-contained model request package without claiming a draft was generated.
+- Added provider-neutral `film-generate` with an optional OpenAI Responses API adapter, offline response-file mode, strict six-file cross-validation, generation receipts, and atomic non-overwriting output.
 
 ## 0.1.0
 

@@ -17,6 +17,7 @@ English summary: a local-first, human-in-the-loop toolkit for inventorying, tech
 - 初始化不会覆盖文件的 `FILM_FIRST` 项目目录，并固定原片版本信息。
 - 校验人类深层解读卡的格式、编号、枚举和场景引用。
 - 在不调用在线模型的前提下，校验并打包电影稿件所需的全部结构化输入。
+- 通过可替换 provider 调用写稿模型，并在原子写入前验收六个标准交付文件。
 
 ## 设计原则
 
@@ -53,6 +54,12 @@ footage-agent doctor
 
 ```bash
 pip install -e ".[whisper]"
+```
+
+如果需要通过 OpenAI Responses API 生成稿件：
+
+```bash
+pip install -e ".[openai]"
 ```
 
 ## 快速开始
@@ -199,6 +206,50 @@ draft_package_manifest.json
 
 `draft_request.md` 自包含严格提示词、写稿规范和本次结构化输入，可以交给后续模型调用层。存在阻塞项时只生成 `draft_readiness.json`，不会生成模型请求。
 
+### 8. 调用模型并验收六个标准文件
+
+先在环境中配置 API Key；不要把 Key 写入命令参数、项目文件或 Git：
+
+```bash
+export OPENAI_API_KEY="your-key"
+```
+
+然后显式选择账号可用的模型。仓库不默认替用户选择价格、速度或推理强度：
+
+```bash
+footage-agent film-generate \
+  artifacts/movie-demo/draft-package \
+  --output artifacts/movie-demo/generated-v1 \
+  --provider openai \
+  --model "your-model-id" \
+  --reasoning-effort high \
+  --verbosity high \
+  --max-output-tokens 50000
+```
+
+`--reasoning-effort`、`--verbosity` 和 `--max-output-tokens` 都是可选项；只有 `--model` 在 OpenAI provider 下必填。该调用只发送 `draft_request.md` 中的文本和结构化场景记录，不上传电影原片。请求固定使用 `store=false`；这不等同于账号已经启用 Zero Data Retention，数据控制仍以 API 账号配置为准。
+
+模型响应只有在以下检查全部通过后才会写入目标目录：
+
+- 六个文件名称完整且没有额外文件或路径穿越。
+- YAML front matter、JSON、CSV 表头与枚举合法。
+- 带标注稿引用的事实 ID、素材 ID 和人工复核 ID 都能跨文件定位。
+- 清单计数、网络素材上限、许可状态和人工复核状态一致。
+- 非 `READY_TO_RECORD` 使用严格的 `NOT_READY` 净稿；录制净稿不含事实编号、素材 ID、网址或时间码。
+- `READY_TO_RECORD` 的全部质量门、时长校准和阻塞项状态成立。
+
+目标目录已存在时命令会停止。模型响应无效时也不会创建半成品目录。成功后，`run_manifest.json` 会增加 provider、实际返回模型、响应 ID、请求/响应 SHA-256 和 token usage（若 provider 返回）的生成记录。
+
+如果已经从其他工具取得了符合 `===FILE: ...===` 协议的完整响应，可以只运行同一套离线验收，不发起 API 请求：
+
+```bash
+footage-agent film-generate \
+  artifacts/movie-demo/draft-package \
+  --output artifacts/movie-demo/generated-v1 \
+  --provider response-file \
+  --response-file /path/to/model-response.txt
+```
+
 ## 音频状态
 
 后续稿件和剪辑索引建议使用以下值：
@@ -221,7 +272,7 @@ draft_package_manifest.json
 - [`examples/film_first/legacy_longform_style.json`](examples/film_first/legacy_longform_style.json)：从旧稿提炼的机器可读风格配置，只用于新项目的写作倾向。
 - [`examples/film_first/human_insights_example.md`](examples/film_first/human_insights_example.md)：虚构场景的人类深层解读卡示例。
 
-当前 CLI 负责素材整理、技术粗筛、转写和模型请求包准备，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。
+当前 CLI 可以把已经完成场景地图、事实表和人类解读的请求包交给文本模型生成稿件，但不会把电影文件直接上传给模型，也不会把模型结果自动视为可录制净稿。最终状态仍由六文件质量门和人工复核共同决定。
 
 ## 工具边界
 
