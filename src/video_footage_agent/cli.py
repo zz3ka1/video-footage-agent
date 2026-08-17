@@ -10,6 +10,7 @@ from pathlib import Path
 
 from video_footage_agent import __version__
 from video_footage_agent.consolidate import execute_consolidation
+from video_footage_agent.film_draft import prepare_film_draft
 from video_footage_agent.film_project import initialize_film_project
 from video_footage_agent.human_insights import require_valid_human_insights
 from video_footage_agent.inventory import (
@@ -167,6 +168,21 @@ def build_parser() -> argparse.ArgumentParser:
     insights_validate.add_argument("insights", type=Path)
     insights_validate.add_argument("--scene-map", type=Path)
     insights_validate.set_defaults(handler=_handle_film_insights_validate)
+
+    film_draft = subparsers.add_parser(
+        "film-draft",
+        help="Validate inputs and prepare a self-contained model draft package",
+    )
+    film_draft.add_argument("project_config", type=Path)
+    film_draft.add_argument("--output", type=Path, required=True)
+    film_draft.add_argument("--scene-map", type=Path)
+    film_draft.add_argument("--human-insights", type=Path)
+    film_draft.add_argument("--fact-sources", type=Path)
+    film_draft.add_argument("--style-profile", type=Path)
+    film_draft.add_argument("--strict-prompt", type=Path)
+    film_draft.add_argument("--style-guide", type=Path)
+    film_draft.add_argument("--verify-source-hash", action="store_true")
+    film_draft.set_defaults(handler=_handle_film_draft)
     return parser
 
 
@@ -297,6 +313,20 @@ def _handle_film_init(args: argparse.Namespace) -> dict:
 
 def _handle_film_insights_validate(args: argparse.Namespace) -> dict:
     return require_valid_human_insights(args.insights, scene_map=args.scene_map)
+
+
+def _handle_film_draft(args: argparse.Namespace) -> dict:
+    return prepare_film_draft(
+        args.project_config,
+        args.output,
+        scene_map=args.scene_map,
+        human_insights=args.human_insights,
+        fact_sources=args.fact_sources,
+        style_profile=args.style_profile,
+        strict_prompt=args.strict_prompt,
+        style_guide=args.style_guide,
+        verify_source_hash=args.verify_source_hash,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

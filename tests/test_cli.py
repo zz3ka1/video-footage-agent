@@ -46,3 +46,15 @@ def test_parser_supports_main_commands() -> None:
         ).command
         == "film-insights-validate"
     )
+    assert (
+        parser.parse_args(
+            [
+                "film-draft",
+                "movie_FULL_project.json",
+                "--output",
+                "draft-package",
+                "--verify-source-hash",
+            ]
+        ).command
+        == "film-draft"
+    )

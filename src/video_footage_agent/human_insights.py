@@ -302,3 +302,14 @@ def require_valid_human_insights(
         detail = "\n".join(f"- {error}" for error in result["errors"])
         raise ValueError(f"Human insights validation failed:\n{detail}")
     return result
+
+
+def load_human_insight_cards(
+    path: Path, *, scene_map: Path | None = None
+) -> list[dict[str, Any]]:
+    """Return validated cards without exposing them in CLI validation output."""
+
+    resolved = path.expanduser().resolve()
+    require_valid_human_insights(resolved, scene_map=scene_map)
+    content = resolved.read_text(encoding="utf-8")
+    return [json.loads(block) for block in _JSON_FENCE.findall(content)]

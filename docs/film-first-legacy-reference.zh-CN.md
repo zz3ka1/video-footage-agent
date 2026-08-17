@@ -86,3 +86,23 @@ footage-agent film-insights-validate \
 如果场景地图尚未生成，可以省略 `--scene-map`。校验器会检查 JSON、重复编号、枚举、时间范围以及已存在场景地图中的引用，但不会判断某项电影解读是否正确。
 
 虚构示例见 [`examples/film_first/human_insights_example.md`](../examples/film_first/human_insights_example.md)。
+
+## 6. 准备模型草稿包
+
+输入完成后运行：
+
+```bash
+footage-agent film-draft \
+  artifacts/movie-demo/movie_demo_FULL_project.json \
+  --output artifacts/movie-demo/draft-package
+```
+
+命令执行以下检查：
+
+- 原片路径、文件大小和已记录指纹是否存在；使用 `--verify-source-hash` 时重新计算指纹。
+- 原片覆盖状态、剧透策略、片段策略和网络素材上限是否完整。
+- 场景地图的表头、时间范围、状态、编号和人工复核值是否合法。
+- 解读卡能否解析并正确引用场景。
+- 事实来源状态、风格配置、严格提示词和写稿规范是否可用。
+
+准备成功后生成自包含的 `draft_request.md`，但当前命令不会调用在线模型。阻塞时只生成 `draft_readiness.json`，以免在证据不足时产生看似完整的稿件。

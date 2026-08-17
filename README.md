@@ -16,6 +16,7 @@ English summary: a local-first, human-in-the-loop toolkit for inventorying, tech
 - 为后续稿件和剪辑索引定义统一音频状态。
 - 初始化不会覆盖文件的 `FILM_FIRST` 项目目录，并固定原片版本信息。
 - 校验人类深层解读卡的格式、编号、枚举和场景引用。
+- 在不调用在线模型的前提下，校验并打包电影稿件所需的全部结构化输入。
 
 ## 设计原则
 
@@ -175,6 +176,29 @@ footage-agent film-insights-validate \
 
 场景地图尚未生成时可以省略 `--scene-map`，此时只校验解读卡本身。示例见 [`examples/film_first/human_insights_example.md`](examples/film_first/human_insights_example.md)。
 
+### 7. 准备电影稿件模型请求
+
+项目配置、场景地图、解读卡和事实来源准备完成后运行：
+
+```bash
+footage-agent film-draft \
+  artifacts/movie-demo/movie_demo_FULL_project.json \
+  --output artifacts/movie-demo/draft-package
+```
+
+默认从项目配置所在目录寻找同项目的 `scene_map.csv`、`human_insights.md` 和 `fact_sources.csv`，并使用仓库内的严格提示词、写稿规范和旧稿风格配置。需要完整重新核对原片指纹时增加 `--verify-source-hash`。
+
+本命令当前使用 `PREPARE_ONLY` 模式，不调用在线模型，也不生成伪装成成稿的旁白。输入完备时输出：
+
+```text
+draft_readiness.json
+draft_context.json
+draft_request.md
+draft_package_manifest.json
+```
+
+`draft_request.md` 自包含严格提示词、写稿规范和本次结构化输入，可以交给后续模型调用层。存在阻塞项时只生成 `draft_readiness.json`，不会生成模型请求。
+
 ## 音频状态
 
 后续稿件和剪辑索引建议使用以下值：
@@ -197,7 +221,7 @@ footage-agent film-insights-validate \
 - [`examples/film_first/legacy_longform_style.json`](examples/film_first/legacy_longform_style.json)：从旧稿提炼的机器可读风格配置，只用于新项目的写作倾向。
 - [`examples/film_first/human_insights_example.md`](examples/film_first/human_insights_example.md)：虚构场景的人类深层解读卡示例。
 
-当前 CLI 负责素材整理、技术粗筛和转写，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。
+当前 CLI 负责素材整理、技术粗筛、转写和模型请求包准备，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。
 
 ## 工具边界
 
