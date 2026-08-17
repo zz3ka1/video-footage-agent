@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "profile_id": "legacy_longform_movie_explainer_zh_cn_v1",
+  "profile_name": "中文长篇剧情电影解说（旧项目提炼）",
+  "provenance": {
+    "type": "DERIVED_STYLE_ONLY",
+    "reference_project": "绣春刀 1 旧稿",
+    "source_media_status": "UNAVAILABLE",
+    "original_comments_status": "UNAVAILABLE",
+    "facts_verified": false,
+    "timecodes_verified": false,
+    "asset_rights_verified": false
+  },
+  "allowed_reuse": [
+    "章节组织方式",
+    "口播节奏与转场偏好",
+    "剧情、历史背景与演员作品的组合方式",
+    "电影原片为主、网络素材为辅的画面策略"
+  ],
+  "forbidden_reuse": [
+    "旧素材编号对应关系",
+    "旧电影原片时间码",
+    "未经重新核验的剧情与历史事实",
+    "旧图片和视频的授权结论"
+  ],
+  "structure": {
+    "observed_total_parts": 12,
+    "observed_story_parts": 10,
+    "part_roles": [
+      "引言",
+      "按剧情顺序展开的主体章节",
+      "主题总结与观众互动结语"
+    ],
+    "target_paragraphs_per_story_part": 3,
+    "opening_summary_verse": {
+      "optional": true,
+      "observed_lines": 20,
+      "characters_per_line": 7
+    },
+    "part_summary_verse": {
+      "optional": true,
+      "observed_lines": 4,
+      "characters_per_line": 7
+    },
+    "chronological_plot_spine": true
+  },
+  "narration": {
+    "language": "zh-CN",
+    "delivery": "适合连续口播的长篇解说",
+    "tone": [
+      "热情",
+      "通俗",
+      "允许轻微幽默",
+      "用现代类比降低理解门槛"
+    ],
+    "content_layers": [
+      "剧情推进",
+      "人物动机与关系",
+      "可核验的时代背景",
+      "演员与其他参演作品",
+      "不损害准确性的梗或类比"
+    ],
+    "meme_policy": {
+      "allowed": true,
+      "must_match_context": true,
+      "must_not_replace_facts": true,
+      "current_memes_require_human_review": true
+    }
+  },
+  "asset_strategy": {
+    "primary_source_kind": "FILM_SOURCE",
+    "observed_target": "每个正文段落至少有一个可定位的电影片段",
+    "supplemental_web_asset_types": [
+      "本片官方海报",
+      "本片演员剧照",
+      "演员其他参演作品的已核验画面",
+      "与旁白直接相关的时代背景图片"
+    ],
+    "max_web_assets": "PROJECT_REQUIRED",
+    "web_rights_default": "HUMAN_REVIEW"
+  },
+  "audio_preferences": {
+    "opening_montage_observation": "AMBIENT_LOW",
+    "narration_over_film": "PROJECT_REQUIRED",
+    "foreground_dialogue": "PROJECT_REQUIRED",
+    "no_legacy_audio_decision_may_be_inferred": true
+  },
+  "quality_gates": {
+    "canonical_source_required": true,
+    "source_fingerprint_required": true,
+    "full_coverage_required_for_full_film_claim": true,
+    "spoiler_policy_required": true,
+    "film_clip_policy_required": true,
+    "cast_mapping_required": true,
+    "facts_must_be_reverified": true,
+    "legacy_timecodes_must_not_be_used": true
+  }
+}

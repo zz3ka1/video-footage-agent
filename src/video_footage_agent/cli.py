@@ -10,6 +10,7 @@ from pathlib import Path
 
 from video_footage_agent import __version__
 from video_footage_agent.consolidate import execute_consolidation
+from video_footage_agent.film_project import initialize_film_project
 from video_footage_agent.inventory import (
     DEFAULT_EXTENSIONS,
     build_inventory,
@@ -38,6 +39,16 @@ def _ratios(value: str) -> tuple[float, ...]:
     if not ratios or any(ratio < 0 or ratio > 1 for ratio in ratios):
         raise argparse.ArgumentTypeError("Ratios must be between 0 and 1")
     return ratios
+
+
+def _non_negative_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Value must be an integer") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError("Value must be non-negative")
+    return number
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -122,6 +133,31 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--ratios", type=_ratios, default=(0.15, 0.5, 0.85))
     scan.add_argument("--items-per-sheet", type=int, default=5)
     scan.set_defaults(handler=_handle_scan_project)
+
+    film_init = subparsers.add_parser(
+        "film-init", help="Create a safe FILM_FIRST project scaffold"
+    )
+    film_init.add_argument("--output", type=Path, required=True)
+    film_init.add_argument("--project-id", required=True)
+    film_init.add_argument("--title", required=True)
+    film_init.add_argument("--original-title", required=True)
+    film_init.add_argument("--release-year", type=int, required=True)
+    film_init.add_argument("--part-id", default="FULL")
+    film_init.add_argument("--source", type=Path)
+    film_init.add_argument("--target-duration", default="UNKNOWN")
+    film_init.add_argument(
+        "--spoiler-policy",
+        choices=(
+            "UNKNOWN",
+            "NO_MAJOR_SPOILERS",
+            "PARTIAL_SPOILERS",
+            "FULL_SPOILERS",
+        ),
+        default="UNKNOWN",
+    )
+    film_init.add_argument("--clip-policy", default="UNKNOWN")
+    film_init.add_argument("--max-web-assets", type=_non_negative_int)
+    film_init.set_defaults(handler=_handle_film_init)
     return parser
 
 
@@ -232,6 +268,22 @@ def _handle_scan_project(args: argparse.Namespace) -> dict:
         "inventory_json": str(inventory_json),
         "overview_sheets": [str(sheet) for sheet in sheets],
     }
+
+
+def _handle_film_init(args: argparse.Namespace) -> dict:
+    return initialize_film_project(
+        args.output,
+        project_id=args.project_id,
+        title=args.title,
+        original_title=args.original_title,
+        release_year=args.release_year,
+        part_id=args.part_id,
+        source=args.source,
+        target_duration=args.target_duration,
+        spoiler_policy=args.spoiler_policy,
+        film_clip_policy=args.clip_policy,
+        max_web_assets=args.max_web_assets,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

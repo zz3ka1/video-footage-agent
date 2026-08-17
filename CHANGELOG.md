@@ -6,6 +6,8 @@
 - Added a strict Script Writer Agent prompt with validated inputs, evidence states, six-file outputs, and recording-readiness gates.
 - Added a film-first task mode for fixed-duration movie sources, cast/character verification, spoiler policy, and limited supplementary web assets.
 - Added the `ORIGINAL_FILM` audio mode for retained synchronized film audio.
+- Added a non-overwriting `film-init` command that fingerprints available source media and scaffolds blocked-safe film project outputs.
+- Added a machine-readable long-form movie style profile derived from a legacy script without reusing its lost timecodes, unverified facts, or asset rights.
 
 ## 0.1.0
 

@@ -14,6 +14,7 @@ English summary: a local-first, human-in-the-loop toolkit for inventorying, tech
 - 调用本地Whisper生成带时间段的JSON转写。
 - 用硬链接、符号链接或复制把分散素材安全集中到新目录。
 - 为后续稿件和剪辑索引定义统一音频状态。
+- 初始化不会覆盖文件的 `FILM_FIRST` 项目目录，并固定原片版本信息。
 
 ## 设计原则
 
@@ -142,6 +143,27 @@ footage-agent consolidate artifacts/inventory.csv /path/to/all-parts \
 
 目标目录必须不存在，工具不会把文件混入已有目录，也不会覆盖同名文件。发生中途错误时，会回滚本次新建的文件。
 
+### 6. 初始化电影解说项目
+
+有合法可访问的电影原片时：
+
+```bash
+footage-agent film-init \
+  --output artifacts/movie-demo \
+  --project-id movie_demo \
+  --title "示例片名" \
+  --original-title "Example Film" \
+  --release-year 2000 \
+  --source /path/to/legally-accessible-film.mp4 \
+  --spoiler-policy PARTIAL_SPOILERS \
+  --clip-policy "由项目负责人确认的片段、原声和字幕规则" \
+  --max-web-assets 6
+```
+
+`film-init` 不会复制或修改原片。它记录原片实际时长、画面参数、文件大小和 SHA-256 指纹，并创建项目配置、场景地图及六个标准交付文件。读取大型原片计算指纹可能需要一些时间。
+
+没有原片或制作策略时可以先省略相应参数。生成目录会保持 `BLOCKED_INPUT`，不会产生看似可录制的净稿。输出目录必须不存在，命令不会覆盖已有项目。命令中的数量只是调用示例，不是全局默认值。
+
 ## 音频状态
 
 后续稿件和剪辑索引建议使用以下值：
@@ -160,6 +182,8 @@ footage-agent consolidate artifacts/inventory.csv /path/to/all-parts \
 
 - [`docs/script-style-guide.zh-CN.md`](docs/script-style-guide.zh-CN.md)：面向人类的完整写稿规范，覆盖选题优先、实拍素材优先和电影原片优先三种任务模式，以及事实核验、叙事风格、术语、素材标注、音频策略、人工复核和净稿红线。
 - [`prompts/script-writer.zh-CN.md`](prompts/script-writer.zh-CN.md)：写稿 Agent 可直接使用的严格提示词，定义输入校验、运行状态、六文件输出协议和质量门。
+- [`docs/film-first-legacy-reference.zh-CN.md`](docs/film-first-legacy-reference.zh-CN.md)：说明旧电影稿可以继承的风格，以及不得复用的时间码、事实和授权信息。
+- [`examples/film_first/legacy_longform_style.json`](examples/film_first/legacy_longform_style.json)：从旧稿提炼的机器可读风格配置，只用于新项目的写作倾向。
 
 当前 CLI 负责素材整理、技术粗筛和转写，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。
 

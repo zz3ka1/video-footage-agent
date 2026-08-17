@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "project_id": "REQUIRED_ASCII_ID",
+    "task_mode": "FILM_FIRST",
+    "topic": "REQUIRED",
+    "content_domain": "电影",
+    "part_id": "FULL",
+    "target_duration": "UNKNOWN",
+    "speech_rate_profile": "UNKNOWN",
+    "style_profile_id": "legacy_longform_movie_explainer_zh_cn_v1"
+  },
+  "film": {
+    "film_title": "REQUIRED",
+    "film_original_title": "REQUIRED",
+    "film_release_year": null,
+    "source": {
+      "status": "MISSING",
+      "path": "",
+      "file_name": "",
+      "sha256": "",
+      "size_bytes": null,
+      "duration": "",
+      "duration_seconds": null,
+      "video_codec": "",
+      "width": null,
+      "height": null,
+      "frame_rate": ""
+    },
+    "film_analysis_coverage": "NOT_STARTED",
+    "spoiler_policy": "UNKNOWN",
+    "film_clip_policy": "UNKNOWN",
+    "max_web_assets": null,
+    "cast_focus": [],
+    "other_works_scope": []
+  },
+  "legacy_reference_policy": {
+    "style_reuse_allowed": true,
+    "facts_reusable_without_verification": false,
+    "timecodes_reusable": false,
+    "asset_rights_reusable": false
+  },
+  "run_status": "BLOCKED_INPUT",
+  "blocking_inputs": [
+    "缺少可定位且可合法访问的电影原片。",
+    "尚未确认剧透策略。",
+    "尚未确认电影片段、同步原声和字幕使用策略。",
+    "尚未设置网络补充素材数量上限。"
+  ]
+}

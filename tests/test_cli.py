@@ -17,3 +17,21 @@ def test_parser_supports_main_commands() -> None:
         ).dry_run
         is True
     )
+    assert (
+        parser.parse_args(
+            [
+                "film-init",
+                "--output",
+                "film-project",
+                "--project-id",
+                "movie_demo",
+                "--title",
+                "示例电影",
+                "--original-title",
+                "Example Film",
+                "--release-year",
+                "2000",
+            ]
+        ).command
+        == "film-init"
+    )
