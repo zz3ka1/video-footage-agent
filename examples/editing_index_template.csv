@@ -1,2 +1,2 @@
-asset_id,classification,source_file,source_in,source_out,duration_s,visual_content,audio_content,audio_mode,chinese_gist,suggested_use,edit_instruction,confidence,human_review,source_or_license
-DEMO-P01-S001,KEEP,part01.MP4,00:10,00:25,15,"Wide exterior establishing shot","Ambient sound and short guide introduction",AMBIENT_LOW,"从外部建立地点与空间关系。","Opening B-roll","Use the most stable 5–8 seconds",high,pending,"local footage"
+asset_id,source_kind,classification,source_file_or_url,source_in,source_out,duration_s,visual_content,audio_content,audio_mode,chinese_gist,suggested_use,edit_instruction,confidence,human_review,license_status,attribution
+P01-VID-01,LOCAL_VIDEO,KEEP,part01.MP4,00:10,00:25,15,"Wide exterior establishing shot","Ambient sound and short guide introduction",AMBIENT_LOW,"从外部建立地点与空间关系。","Opening B-roll","Use the most stable 5–8 seconds",high,pending,OWNED,""

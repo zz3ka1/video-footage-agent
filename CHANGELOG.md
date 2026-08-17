@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added a complete Chinese script style guide for topic-first and footage-first projects.
+- Added a strict Script Writer Agent prompt with validated inputs, evidence states, six-file outputs, and recording-readiness gates.
+
 ## 0.1.0
 
 - Added recursive video inventory with duplicate part detection.

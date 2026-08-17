@@ -155,6 +155,13 @@ footage-agent consolidate artifacts/inventory.csv /path/to/all-parts \
 
 可直接复用[`examples/editing_index_template.csv`](examples/editing_index_template.csv)作为剪辑索引字段模板。
 
+## 稿件生成规范
+
+- [`docs/script-style-guide.zh-CN.md`](docs/script-style-guide.zh-CN.md)：面向人类的完整写稿规范，覆盖两种任务模式、事实核验、叙事风格、术语、素材标注、音频策略、人工复核和净稿红线。
+- [`prompts/script-writer.zh-CN.md`](prompts/script-writer.zh-CN.md)：写稿 Agent 可直接使用的严格提示词，定义输入校验、运行状态、六文件输出协议和质量门。
+
+当前 CLI 负责素材整理、技术粗筛和转写，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。
+
 ## 工具边界
 
 技术粗筛无法独立判断：
