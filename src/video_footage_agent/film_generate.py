@@ -69,6 +69,8 @@ FACT_STATUSES = {
     "OMIT",
 }
 READY_FACT_STATUSES = {"VERIFIED", "LOCAL_CONFIRMED"}
+DEEPSEEK_MODELS = {"deepseek-v4-flash", "deepseek-v4-pro"}
+DEEPSEEK_REASONING_EFFORTS = {None, "low", "high", "max"}
 NOT_READY_CLEAN_SCRIPT = (
     "NOT_READY_TO_RECORD\n"
     "未生成录制净稿；请处理 review_queue.md 中的阻塞项。"
@@ -178,6 +180,94 @@ class OpenAIResponsesProvider:
         return ModelResponse(
             text=output_text,
             provider="openai",
+            model=response_model if isinstance(response_model, str) else self.model,
+            response_id=_string_value(getattr(response, "id", "")),
+            usage=usage,
+        )
+
+
+class DeepSeekChatProvider:
+    """DeepSeek OpenAI-compatible Chat Completions adapter."""
+
+    def __init__(
+        self,
+        *,
+        model: str,
+        thinking: str | None = None,
+        reasoning_effort: str | None = None,
+        max_output_tokens: int | None = None,
+    ) -> None:
+        if model not in DEEPSEEK_MODELS:
+            supported = ", ".join(sorted(DEEPSEEK_MODELS))
+            raise ValueError(f"unsupported DeepSeek model; choose one of: {supported}")
+        if thinking not in {None, "enabled", "disabled"}:
+            raise ValueError("DeepSeek thinking must be enabled or disabled")
+        if reasoning_effort not in DEEPSEEK_REASONING_EFFORTS:
+            raise ValueError("DeepSeek reasoning effort must be low, high, or max")
+        if thinking == "disabled" and reasoning_effort is not None:
+            raise ValueError(
+                "DeepSeek reasoning effort cannot be set when thinking is disabled"
+            )
+        if max_output_tokens is not None and max_output_tokens <= 0:
+            raise ValueError("max_output_tokens must be positive")
+        self.model = model
+        self.thinking = thinking
+        self.reasoning_effort = reasoning_effort
+        self.max_output_tokens = max_output_tokens
+
+    def generate(self, request: str) -> ModelResponse:
+        api_key = os.environ.get("DEEPSEEK_API_KEY")
+        if not api_key:
+            raise RuntimeError(
+                "DEEPSEEK_API_KEY is not configured; set it in the environment before "
+                "using --provider deepseek"
+            )
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise RuntimeError(
+                'OpenAI-compatible SDK is not installed; run pip install -e ".[openai]"'
+            ) from exc
+
+        parameters: dict[str, Any] = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": request}],
+            "stream": False,
+        }
+        if self.reasoning_effort is not None:
+            parameters["reasoning_effort"] = self.reasoning_effort
+        if self.thinking is not None:
+            parameters["extra_body"] = {"thinking": {"type": self.thinking}}
+        if self.max_output_tokens is not None:
+            parameters["max_tokens"] = self.max_output_tokens
+
+        try:
+            client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+            response = client.chat.completions.create(**parameters)
+        except Exception as exc:
+            raise RuntimeError(
+                f"DeepSeek Chat Completions API call failed ({type(exc).__name__}): "
+                f"{exc}"
+            ) from exc
+
+        choices = getattr(response, "choices", None)
+        if not isinstance(choices, list) or not choices:
+            raise RuntimeError("DeepSeek response did not contain a completion choice")
+        choice = choices[0]
+        finish_reason = getattr(choice, "finish_reason", None)
+        if finish_reason != "stop":
+            raise RuntimeError(
+                f"DeepSeek response was incomplete (finish_reason={finish_reason})"
+            )
+        message = getattr(choice, "message", None)
+        output_text = getattr(message, "content", None)
+        if not isinstance(output_text, str) or not output_text.strip():
+            raise RuntimeError("DeepSeek response did not contain non-empty content")
+        usage = _serializable_usage(getattr(response, "usage", None))
+        response_model = getattr(response, "model", self.model)
+        return ModelResponse(
+            text=output_text,
+            provider="deepseek",
             model=response_model if isinstance(response_model, str) else self.model,
             response_id=_string_value(getattr(response, "id", "")),
             usage=usage,

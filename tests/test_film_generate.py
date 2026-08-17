@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from video_footage_agent.film_generate import (
+    DeepSeekChatProvider,
     ModelResponse,
     OpenAIResponsesProvider,
     generate_film_draft,
@@ -449,3 +450,85 @@ def test_openai_provider_uses_responses_api_without_storage(
     assert response.model == "resolved-model"
     assert response.response_id == "resp_123"
     assert response.usage == {"input_tokens": 12, "output_tokens": 34}
+
+
+def test_deepseek_provider_requires_its_own_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    provider = DeepSeekChatProvider(model="deepseek-v4-flash")
+    with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
+        provider.generate("request")
+
+
+def test_deepseek_provider_uses_official_openai_compatible_chat_api(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client_arguments: dict[str, object] = {}
+    request_arguments: dict[str, object] = {}
+
+    class Usage:
+        def model_dump(self) -> dict[str, int]:
+            return {"prompt_tokens": 20, "completion_tokens": 30, "total_tokens": 50}
+
+    class Completions:
+        def create(self, **kwargs: object) -> object:
+            request_arguments.update(kwargs)
+            return types.SimpleNamespace(
+                id="deepseek_resp_123",
+                model="deepseek-v4-flash",
+                choices=[
+                    types.SimpleNamespace(
+                        finish_reason="stop",
+                        message=types.SimpleNamespace(content="six file response"),
+                    )
+                ],
+                usage=Usage(),
+            )
+
+    class Client:
+        def __init__(self, **kwargs: object) -> None:
+            client_arguments.update(kwargs)
+            self.chat = types.SimpleNamespace(completions=Completions())
+
+    module = types.ModuleType("openai")
+    module.OpenAI = Client  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "openai", module)
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "deepseek-test-key-not-real")
+
+    response = DeepSeekChatProvider(
+        model="deepseek-v4-flash",
+        thinking="enabled",
+        reasoning_effort="high",
+        max_output_tokens=50000,
+    ).generate("request")
+
+    assert client_arguments == {
+        "api_key": "deepseek-test-key-not-real",
+        "base_url": "https://api.deepseek.com",
+    }
+    assert request_arguments == {
+        "model": "deepseek-v4-flash",
+        "messages": [{"role": "user", "content": "request"}],
+        "stream": False,
+        "reasoning_effort": "high",
+        "extra_body": {"thinking": {"type": "enabled"}},
+        "max_tokens": 50000,
+    }
+    assert response.provider == "deepseek"
+    assert response.model == "deepseek-v4-flash"
+    assert response.response_id == "deepseek_resp_123"
+    assert response.usage == {
+        "prompt_tokens": 20,
+        "completion_tokens": 30,
+        "total_tokens": 50,
+    }
+
+
+def test_deepseek_provider_rejects_reasoning_effort_when_thinking_is_disabled() -> None:
+    with pytest.raises(ValueError, match="cannot be set"):
+        DeepSeekChatProvider(
+            model="deepseek-v4-flash",
+            thinking="disabled",
+            reasoning_effort="high",
+        )

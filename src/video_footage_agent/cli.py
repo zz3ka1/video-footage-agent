@@ -12,6 +12,7 @@ from video_footage_agent import __version__
 from video_footage_agent.consolidate import execute_consolidation
 from video_footage_agent.film_draft import prepare_film_draft
 from video_footage_agent.film_generate import (
+    DeepSeekChatProvider,
     OpenAIResponsesProvider,
     ResponseFileProvider,
     generate_film_draft,
@@ -203,11 +204,13 @@ def build_parser() -> argparse.ArgumentParser:
     film_generate.add_argument("draft_package", type=Path)
     film_generate.add_argument("--output", type=Path, required=True)
     film_generate.add_argument(
-        "--provider", choices=("openai", "response-file"), default="openai"
+        "--provider",
+        choices=("openai", "deepseek", "response-file"),
+        default="openai",
     )
     film_generate.add_argument(
         "--model",
-        help="Required for OpenAI; choose an available model explicitly",
+        help="Required for API providers; choose an available model explicitly",
     )
     film_generate.add_argument(
         "--response-file",
@@ -217,8 +220,18 @@ def build_parser() -> argparse.ArgumentParser:
     film_generate.add_argument(
         "--reasoning-effort",
         choices=("none", "low", "medium", "high", "xhigh", "max"),
+        help="Provider-specific; DeepSeek accepts low, high, or max",
     )
-    film_generate.add_argument("--verbosity", choices=("low", "medium", "high"))
+    film_generate.add_argument(
+        "--thinking",
+        choices=("enabled", "disabled"),
+        help="DeepSeek only; omitted uses the provider default",
+    )
+    film_generate.add_argument(
+        "--verbosity",
+        choices=("low", "medium", "high"),
+        help="OpenAI provider only",
+    )
     film_generate.add_argument("--max-output-tokens", type=_positive_int)
     film_generate.set_defaults(handler=_handle_film_generate)
     return parser
@@ -373,10 +386,25 @@ def _handle_film_generate(args: argparse.Namespace) -> dict:
             raise ValueError("--model is required with --provider openai")
         if args.response_file is not None:
             raise ValueError("--response-file can only be used with response-file provider")
+        if args.thinking is not None:
+            raise ValueError("--thinking can only be used with DeepSeek provider")
         provider = OpenAIResponsesProvider(
             model=args.model,
             reasoning_effort=args.reasoning_effort,
             verbosity=args.verbosity,
+            max_output_tokens=args.max_output_tokens,
+        )
+    elif args.provider == "deepseek":
+        if not args.model:
+            raise ValueError("--model is required with --provider deepseek")
+        if args.response_file is not None:
+            raise ValueError("--response-file can only be used with response-file provider")
+        if args.verbosity is not None:
+            raise ValueError("--verbosity is not supported by DeepSeek provider")
+        provider = DeepSeekChatProvider(
+            model=args.model,
+            thinking=args.thinking,
+            reasoning_effort=args.reasoning_effort,
             max_output_tokens=args.max_output_tokens,
         )
     else:
@@ -387,6 +415,7 @@ def _handle_film_generate(args: argparse.Namespace) -> dict:
             for value in (
                 args.model,
                 args.reasoning_effort,
+                args.thinking,
                 args.verbosity,
                 args.max_output_tokens,
             )
