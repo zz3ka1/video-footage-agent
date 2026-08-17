@@ -52,6 +52,7 @@ footage-agent film-init \
 
 ```text
 {project_id}_{part_id}_project.json
+{project_id}_{part_id}_human_insights.md
 {project_id}_{part_id}_script_annotated.md
 {project_id}_{part_id}_script_clean.md
 {project_id}_{part_id}_scene_map.csv
@@ -62,3 +63,26 @@ footage-agent film-init \
 ```
 
 输出目录必须不存在；`film-init` 不会覆盖已有项目。
+
+## 5. 添加和校验人类解读
+
+`human_insights.md` 用于记录用户对全片、人物、场景、时间范围或章节的深层理解。每条解读卡必须区分：
+
+- 需要独立核验的事实线索 `FACT_CLAIM`。
+- 必须按分析口吻表达的个人解读 `INTERPRETATION`。
+- 只约束制作方式的 `EDITORIAL_DIRECTION`。
+- 尚待结合后文或资料解决的 `QUESTION`。
+
+用户可以直接用自然语言告诉 Agent，不必手写 JSON。Agent 应把原话整理成 `DRAFT` 解读卡供用户确认；只有用户确认后才改为 `CONFIRMED`。
+
+填写后执行：
+
+```bash
+footage-agent film-insights-validate \
+  artifacts/movie-demo/movie_demo_FULL_human_insights.md \
+  --scene-map artifacts/movie-demo/movie_demo_FULL_scene_map.csv
+```
+
+如果场景地图尚未生成，可以省略 `--scene-map`。校验器会检查 JSON、重复编号、枚举、时间范围以及已存在场景地图中的引用，但不会判断某项电影解读是否正确。
+
+虚构示例见 [`examples/film_first/human_insights_example.md`](../examples/film_first/human_insights_example.md)。

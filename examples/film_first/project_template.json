@@ -8,7 +8,8 @@
     "part_id": "FULL",
     "target_duration": "UNKNOWN",
     "speech_rate_profile": "UNKNOWN",
-    "style_profile_id": "legacy_longform_movie_explainer_zh_cn_v1"
+    "style_profile_id": "legacy_longform_movie_explainer_zh_cn_v1",
+    "human_insights_file": "{project_id}_{part_id}_human_insights.md"
   },
   "film": {
     "film_title": "REQUIRED",

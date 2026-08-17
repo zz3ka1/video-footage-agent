@@ -11,6 +11,7 @@ from pathlib import Path
 from video_footage_agent import __version__
 from video_footage_agent.consolidate import execute_consolidation
 from video_footage_agent.film_project import initialize_film_project
+from video_footage_agent.human_insights import require_valid_human_insights
 from video_footage_agent.inventory import (
     DEFAULT_EXTENSIONS,
     build_inventory,
@@ -158,6 +159,14 @@ def build_parser() -> argparse.ArgumentParser:
     film_init.add_argument("--clip-policy", default="UNKNOWN")
     film_init.add_argument("--max-web-assets", type=_non_negative_int)
     film_init.set_defaults(handler=_handle_film_init)
+
+    insights_validate = subparsers.add_parser(
+        "film-insights-validate",
+        help="Validate human interpretation cards and optional scene references",
+    )
+    insights_validate.add_argument("insights", type=Path)
+    insights_validate.add_argument("--scene-map", type=Path)
+    insights_validate.set_defaults(handler=_handle_film_insights_validate)
     return parser
 
 
@@ -284,6 +293,10 @@ def _handle_film_init(args: argparse.Namespace) -> dict:
         film_clip_policy=args.clip_policy,
         max_web_assets=args.max_web_assets,
     )
+
+
+def _handle_film_insights_validate(args: argparse.Namespace) -> dict:
+    return require_valid_human_insights(args.insights, scene_map=args.scene_map)
 
 
 def main(argv: list[str] | None = None) -> int:

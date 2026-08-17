@@ -1,0 +1,6 @@
+window_id,source_in,source_out,coverage_status,summary,characters,dialogue_gist,visual_notes,confidence,human_review
+F001-W001,00:00:00,00:00:32,ANALYZED,"片头标志与制作人员字幕","","无对白","黑底字幕，缺少叙事画面",high,approved
+F001-W003,00:01:18,00:02:36,ANALYZED,"男主在候车室与陌生女子第一次见面","林川；苏遥","女子询问末班车是否已经离开","双人中景和面部特写较多",high,approved
+F001-W004,00:02:36,00:03:08,REVIEW_REQUIRED,"女子把一把旧钥匙放在长椅上后离开","苏遥","没有明确说明钥匙用途","钥匙特写清晰；人物身份尚未确认",medium,pending
+F001-W006,00:04:42,00:05:27,ANALYZED,"男主回到长椅检查钥匙上的编号","林川","男主低声读出编号307","钥匙和编号特写；适合解释关键线索",high,approved
+F001-W010,00:08:48,00:09:31,REVIEW_REQUIRED,"门后传来女子声音，但没有出现人物","林川；未知女声","声音提醒男主不要开门","说话者可能是苏遥，需要结合后文确认",medium,pending

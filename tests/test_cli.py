@@ -35,3 +35,14 @@ def test_parser_supports_main_commands() -> None:
         ).command
         == "film-init"
     )
+    assert (
+        parser.parse_args(
+            [
+                "film-insights-validate",
+                "human_insights.md",
+                "--scene-map",
+                "scene_map.csv",
+            ]
+        ).command
+        == "film-insights-validate"
+    )

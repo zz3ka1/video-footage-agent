@@ -71,6 +71,24 @@ def test_film_mode_contract_is_complete() -> None:
         assert term in guide
 
 
+def test_human_insights_contract_distinguishes_claims_and_interpretations() -> None:
+    prompt = AGENT_PROMPT.read_text(encoding="utf-8")
+    guide = STYLE_GUIDE.read_text(encoding="utf-8")
+    for term in (
+        "human_insights",
+        "FACT_CLAIM",
+        "INTERPRETATION",
+        "EDITORIAL_DIRECTION",
+        "QUESTION",
+        "MUST_USE",
+        "MUST_AVOID",
+    ):
+        assert term in prompt
+        assert term in guide
+    assert '"prompt_version": "1.2"' in prompt
+    assert "> 版本：1.2" in guide
+
+
 def test_editing_index_template_matches_prompt_contract() -> None:
     with EDITING_INDEX.open(newline="", encoding="utf-8") as handle:
         rows = list(csv.reader(handle))

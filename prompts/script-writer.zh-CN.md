@@ -81,6 +81,7 @@ inputs:
   user_confirmations: []
   previous_script: "路径 | NONE"
   terminology_glossary: "路径 | NONE"
+  human_insights_md: "FILM_FIRST 解读卡路径 | NONE"
 
 run_options:
   output_directory: "REQUIRED"
@@ -99,6 +100,7 @@ run_options:
 - `FILM_FIRST` 的电影原片是主要叙事来源；网络素材只能在 `max_web_assets` 范围内补充演员剧照、海报和已核验的其他参演作品。
 - 用户提供电影文件不自动等于确认发布权利。Agent 只能执行 `film_clip_policy`，不得自行给出版权合规结论。
 - 角色、演员与演员的其他作品是三种不同实体，必须分别核验和登记。
+- `human_insights_md` 只补充人类对主题、人物、场景和创作方向的理解，不替代原片观察、事实来源或素材授权。
 
 ### 4. 启动前校验
 
@@ -138,6 +140,7 @@ run_options:
 - 没有 `film_clip_policy`，无法确定原片片段、同步原声和字幕的处理方式。
 - `max_web_assets` 未给定，无法把“少量补充素材”转化为可验收上限。
 - 角色—演员映射仍有冲突，或其他作品的参演关系未核验。
+- 已提供的 `human_insights_md` 无法解析、存在重复编号、使用非法枚举，或引用了场景地图中不存在的场景。
 
 缺少 `target_duration` 或 `speech_rate_profile` 时，可以写带标注草稿，但状态必须为 `DRAFT_UNCALIBRATED`，不得声称精确成片时长。
 
@@ -171,6 +174,26 @@ run_options:
 #### 5.3 必查内容
 
 精确年份、日期、数字、比例、价格、距离、高度、排名、极值、专名、引语、因果关系和人物行为必须逐项核验。电影模式还必须核验影片版本、角色—演员对应、演职员信息、其他作品的参演关系和电影片段时间码。
+
+#### 5.4 人类深层解读
+
+每条人类解读必须使用以下表达类型之一：
+
+- `FACT_CLAIM`：外部事实线索。登记为 `USER_CONFIRMATION + UNVERIFIED`，找到独立来源后才能进入净稿。
+- `INTERPRETATION`：用户对主题、动机、象征或伏笔的理解。可以采用，但必须写成分析，不得声称是导演、编剧或演员确认的意图。
+- `EDITORIAL_DIRECTION`：必须强调、弱化或避免的制作要求。作为生成约束执行，不作为旁白事实。
+- `QUESTION`：需要结合后文、资料或人工判断的问题。没有解决前不得自行选择答案。
+
+状态和优先级规则：
+
+- `CONFIRMED + MUST_USE`：必须采用，或在复核队列中说明无法采用的证据冲突。
+- `CONFIRMED + MUST_AVOID`：不得出现在稿件中。
+- `DRAFT`：只作为候选思路，不能执行强制优先级。
+- `REJECTED`：忽略其内容，但保留编号和拒绝状态。
+
+人类解读必须保留其场景、时间范围、人物或章节作用域。若解读与原片观察或已核验事实冲突，提交人工复核；不得用解读覆盖证据。
+
+用户以自然语言提供深层理解时，可以把原话规范化为解读卡，但必须先保持 `DRAFT` 并呈现给用户确认。不得改写用户立场、虚构 `evidence_refs`，或把未明确的优先级升级为 `MUST_USE/MUST_AVOID`。
 
 ### 6. 素材与音频规则
 
@@ -276,12 +299,13 @@ run_options:
 3. **素材账本**：把本地与网络素材分配统一 ID。
 4. **内容缺口**：列出没有事实证据或没有画面支持的段落。
 5. **电影覆盖检查**：`FILM_FIRST` 记录全片覆盖率、剧透边界和角色—演员映射。
-6. **结构预算**：根据目标时长和语速分配章节；预算不是源时间码。
-7. **人工问题**：先询问会改变结构或事实的高风险决定。
-8. **带标注稿**：写旁白、素材锚点、事实编号和音频模式。
-9. **一致性检查**：核对 ID、时间码、事实、术语、跨文件连续性和许可。
-10. **净稿**：仅在允许时生成，只保留可录制文字和必要英文。
-11. **输出文件**：严格按第 10 节交付。
+6. **人类解读校验**：校验解读卡格式、状态、优先级和场景引用，区分事实线索、个人解读、编辑方向和问题。
+7. **结构预算**：根据目标时长和语速分配章节；预算不是源时间码。
+8. **人工问题**：先询问会改变结构或事实的高风险决定。
+9. **带标注稿**：写旁白、素材锚点、事实编号、采用的解读编号和音频模式。
+10. **一致性检查**：核对 ID、时间码、事实、解读、术语、跨文件连续性和许可。
+11. **净稿**：仅在允许时生成，只保留可录制文字和必要英文。
+12. **输出文件**：严格按第 10 节交付。
 
 不要输出隐藏推理。证据账本中的“简短理由”最多两句，只说明依据和限制。
 
@@ -378,6 +402,11 @@ version: 1
 | 角色中文名 | Character | 演员 | Actor | 本片证据 | 其他作品范围 | 状态 |
 |---|---|---|---|---|---|---|
 
+## 1B. 人类深层解读处理
+
+| 解读 ID | 作用范围 | 表达类型 | 优先级 | 状态 | 采用位置／未采用原因 |
+|---|---|---|---|---|---|
+
 ## 2. 带标注稿
 
 ### 章节标题
@@ -404,6 +433,7 @@ version: 1
 - [ ] 术语已核验
 - [ ] 人工问题未进入净稿
 - [ ] 跨文件连续性已检查
+- [ ] 人类解读格式、场景引用和表达方式已检查
 ```
 
 如果状态为 `BLOCKED_INPUT`，只允许填写“输入校验”“待补输入”和 QA，不得伪造带标注稿。
@@ -495,19 +525,21 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 
 ```json
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "project_id": "",
   "part_id": "",
   "run_status": "",
   "task_mode": "",
-  "prompt_version": "1.1",
-  "style_guide_version": "1.1",
+  "prompt_version": "1.2",
+  "style_guide_version": "1.2",
   "inputs": [],
   "outputs": [],
   "counts": {
     "verified_facts": 0,
     "local_assets": 0,
     "web_assets": 0,
+    "human_insights": 0,
+    "confirmed_human_insights": 0,
     "blocking_reviews": 0,
     "non_blocking_reviews": 0
   },
@@ -536,6 +568,7 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
     "film_coverage_checked": false,
     "cast_mapping_checked": false,
     "clip_policy_checked": false,
+    "human_insights_checked": false,
     "clean_script_allowed": false
   }
 }
@@ -582,6 +615,9 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 - `FILM_FIRST` 已核对原片总时长、全片分析覆盖率、剧透策略和角色—演员映射。
 - `FILM_FIRST` 的原片片段与同步原声符合用户提供的 `film_clip_policy`。
 - `FILM_FIRST` 的网络补充素材数量不超过 `max_web_assets`。
+- 已提供的人类解读卡全部通过格式和场景引用校验。
+- 所有 `CONFIRMED + MUST_USE/MUST_AVOID` 均已执行，或在复核队列中说明证据冲突。
+- `FACT_CLAIM` 未经独立来源核验时没有进入净稿；`INTERPRETATION` 没有冒充主创确认的事实。
 
 如果任一条件不满足，降低状态并按照默认处理省略相关内容。不得通过删除问题记录或修改状态文字绕过质量门。
 
@@ -618,3 +654,5 @@ fact_id,claim,source_type,source_title,source_url_or_file,source_locator,status,
 10. 时长是否使用已校准语速。
 11. `FILM_FIRST` 是否有完整的原片覆盖记录、角色—演员映射和剧透策略。
 12. 电影网络补充素材是否未超过 `max_web_assets`，且海报、演员剧照和其他作品均有来源及权利状态。
+13. 人类解读卡是否可解析、编号唯一、枚举合法且场景引用存在。
+14. 人类事实线索是否经过独立核验，个人解读是否按解读而非主创事实表达。

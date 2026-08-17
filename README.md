@@ -15,6 +15,7 @@ English summary: a local-first, human-in-the-loop toolkit for inventorying, tech
 - 用硬链接、符号链接或复制把分散素材安全集中到新目录。
 - 为后续稿件和剪辑索引定义统一音频状态。
 - 初始化不会覆盖文件的 `FILM_FIRST` 项目目录，并固定原片版本信息。
+- 校验人类深层解读卡的格式、编号、枚举和场景引用。
 
 ## 设计原则
 
@@ -160,9 +161,19 @@ footage-agent film-init \
   --max-web-assets 6
 ```
 
-`film-init` 不会复制或修改原片。它记录原片实际时长、画面参数、文件大小和 SHA-256 指纹，并创建项目配置、场景地图及六个标准交付文件。读取大型原片计算指纹可能需要一些时间。
+`film-init` 不会复制或修改原片。它记录原片实际时长、画面参数、文件大小和 SHA-256 指纹，并创建项目配置、人类解读模板、场景地图及六个标准交付文件。读取大型原片计算指纹可能需要一些时间。
 
 没有原片或制作策略时可以先省略相应参数。生成目录会保持 `BLOCKED_INPUT`，不会产生看似可录制的净稿。输出目录必须不存在，命令不会覆盖已有项目。命令中的数量只是调用示例，不是全局默认值。
+
+填写人类解读卡后运行：
+
+```bash
+footage-agent film-insights-validate \
+  artifacts/movie-demo/movie_demo_FULL_human_insights.md \
+  --scene-map artifacts/movie-demo/movie_demo_FULL_scene_map.csv
+```
+
+场景地图尚未生成时可以省略 `--scene-map`，此时只校验解读卡本身。示例见 [`examples/film_first/human_insights_example.md`](examples/film_first/human_insights_example.md)。
 
 ## 音频状态
 
@@ -184,6 +195,7 @@ footage-agent film-init \
 - [`prompts/script-writer.zh-CN.md`](prompts/script-writer.zh-CN.md)：写稿 Agent 可直接使用的严格提示词，定义输入校验、运行状态、六文件输出协议和质量门。
 - [`docs/film-first-legacy-reference.zh-CN.md`](docs/film-first-legacy-reference.zh-CN.md)：说明旧电影稿可以继承的风格，以及不得复用的时间码、事实和授权信息。
 - [`examples/film_first/legacy_longform_style.json`](examples/film_first/legacy_longform_style.json)：从旧稿提炼的机器可读风格配置，只用于新项目的写作倾向。
+- [`examples/film_first/human_insights_example.md`](examples/film_first/human_insights_example.md)：虚构场景的人类深层解读卡示例。
 
 当前 CLI 负责素材整理、技术粗筛和转写，还没有直接调用多模态大模型。上述提示词定义的是后续语义写稿层的行为契约，不代表现有代码已经能够自动完成最终稿件。
 

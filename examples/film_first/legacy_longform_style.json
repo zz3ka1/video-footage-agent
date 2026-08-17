@@ -85,6 +85,13 @@
     "foreground_dialogue": "PROJECT_REQUIRED",
     "no_legacy_audio_decision_may_be_inferred": true
   },
+  "human_insights": {
+    "accepted": true,
+    "fact_claims_require_verification": true,
+    "interpretations_must_be_framed_as_interpretations": true,
+    "editorial_directions_are_not_film_facts": true,
+    "confirmed_insights_take_priority_over_style_preferences": true
+  },
   "quality_gates": {
     "canonical_source_required": true,
     "source_fingerprint_required": true,

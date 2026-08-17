@@ -24,13 +24,14 @@ def test_initialize_film_project_without_source_is_blocked(tmp_path: Path) -> No
 
     assert result["run_status"] == "BLOCKED_INPUT"
     assert result["source_status"] == "MISSING"
-    assert len(result["files"]) == 8
+    assert len(result["files"]) == 9
 
     project = json.loads(
         (output / "movie_demo_FULL_project.json").read_text(encoding="utf-8")
     )
     assert project["project"]["task_mode"] == "FILM_FIRST"
     assert project["film"]["source"]["sha256"] == ""
+    assert project["project"]["human_insights_file"].endswith("_human_insights.md")
     assert project["legacy_reference_policy"]["timecodes_reusable"] is False
     assert project["legacy_reference_policy"]["asset_rights_reusable"] is False
 
@@ -41,9 +42,14 @@ def test_initialize_film_project_without_source_is_blocked(tmp_path: Path) -> No
     assert manifest["film"]["analysis_coverage"] == "NOT_STARTED"
     assert manifest["film"]["clip_policy_checked"] is False
     assert manifest["counts"]["local_assets"] == 0
+    assert manifest["quality_gates"]["human_insights_checked"] is False
 
     clean = (output / "movie_demo_FULL_script_clean.md").read_text(encoding="utf-8")
     assert clean.startswith("NOT_READY_TO_RECORD\n")
+    insights = (output / "movie_demo_FULL_human_insights.md").read_text(
+        encoding="utf-8"
+    )
+    assert "HINS-001" in insights
 
 
 @pytest.mark.parametrize(

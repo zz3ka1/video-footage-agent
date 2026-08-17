@@ -10,6 +10,7 @@ import shutil
 from pathlib import Path
 from typing import Any
 
+from video_footage_agent.human_insights import human_insights_template
 from video_footage_agent.media import format_time, probe_media, video_stream
 
 EDITING_INDEX_HEADER = [
@@ -168,6 +169,7 @@ def initialize_film_project(
     stem = f"{project_id}_{part_id}"
     names = {
         "project": f"{stem}_project.json",
+        "human_insights": f"{stem}_human_insights.md",
         "annotated": f"{stem}_script_annotated.md",
         "clean": f"{stem}_script_clean.md",
         "scene_map": f"{stem}_scene_map.csv",
@@ -188,6 +190,7 @@ def initialize_film_project(
             "target_duration": target_duration,
             "speech_rate_profile": "UNKNOWN",
             "style_profile_id": style_profile_id,
+            "human_insights_file": names["human_insights"],
         },
         "film": {
             "film_title": title.strip(),
@@ -214,6 +217,9 @@ def initialize_film_project(
     output.mkdir(parents=True)
     try:
         _write_json(output / names["project"], project)
+        (output / names["human_insights"]).write_text(
+            human_insights_template(project_id, part_id), encoding="utf-8"
+        )
         _write_csv_header(output / names["scene_map"], SCENE_MAP_HEADER)
         _write_csv_header(output / names["editing_index"], EDITING_INDEX_HEADER)
         _write_csv_header(output / names["fact_sources"], FACT_SOURCES_HEADER)
@@ -236,7 +242,7 @@ version: 1
 
 ## 0. 输入校验
 
-- 可用输入：见 `{names["project"]}`。
+- 可用输入：见 `{names["project"]}`；人类解读填写在 `{names["human_insights"]}`。
 - 缺失输入：
 {missing}
 - 冲突：无已确认冲突。
@@ -298,19 +304,24 @@ version: 1
         (output / names["review_queue"]).write_text(review, encoding="utf-8")
 
         manifest = {
-            "schema_version": "1.1",
+            "schema_version": "1.2",
             "project_id": project_id,
             "part_id": part_id,
             "run_status": run_status,
             "task_mode": "FILM_FIRST",
-            "prompt_version": "1.1",
-            "style_guide_version": "1.1",
-            "inputs": [source_info["path"]] if source_info["path"] else [],
+            "prompt_version": "1.2",
+            "style_guide_version": "1.2",
+            "inputs": [
+                *([source_info["path"]] if source_info["path"] else []),
+                names["human_insights"],
+            ],
             "outputs": list(names.values()),
             "counts": {
                 "verified_facts": 0,
                 "local_assets": 0,
                 "web_assets": 0,
+                "human_insights": 0,
+                "confirmed_human_insights": 0,
                 "blocking_reviews": len(review_items),
                 "non_blocking_reviews": 0,
             },
@@ -339,6 +350,7 @@ version: 1
                 "film_coverage_checked": False,
                 "cast_mapping_checked": False,
                 "clip_policy_checked": False,
+                "human_insights_checked": False,
                 "clean_script_allowed": False,
             },
         }
