@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "profile_id": "footage_first_travel_zh_cn_v1",
+  "profile_name": "中文实拍旅游与博物馆口播",
+  "provenance": {
+    "type": "PROJECT_RULES_DERIVED",
+    "facts_verified": false,
+    "timecodes_verified": false,
+    "asset_rights_verified": false
+  },
+  "structure": {
+    "opening": "从本地素材里最具体的物件、动作或反差切入",
+    "spine": "按游客实际空间动线推进，但允许删除重复走动",
+    "ending": "回扣开头问题，并为下一 Part 留出自然接口"
+  },
+  "narration": {
+    "language": "zh-CN",
+    "tone": ["正面", "通俗", "观察具体", "允许轻微幽默"],
+    "avoid": ["广告式夸赞", "无来源历史故事", "为填满素材而强写旁白"]
+  },
+  "asset_strategy": {
+    "primary_source_kind": "LOCAL_VIDEO",
+    "local_footage_first": true,
+    "web_assets_only_for_verified_gaps": true,
+    "repetitive_walkthrough_may_be_removed": true
+  },
+  "audio_preferences": {
+    "use_original_guide_only_when_verified": true,
+    "short_ambient_openings_allowed": true,
+    "narration_default": "MUTE_VO",
+    "low_information_motion_default": "MUTE_DELETE"
+  },
+  "quality_gates": {
+    "facts_must_be_traceable": true,
+    "local_timecodes_required": true,
+    "audio_and_visual_value_separate": true,
+    "network_rights_must_be_checked": true
+  }
+}

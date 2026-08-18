@@ -183,9 +183,9 @@ footage-agent film-insights-validate \
 
 场景地图尚未生成时可以省略 `--scene-map`，此时只校验解读卡本身。示例见 [`examples/film_first/human_insights_example.md`](examples/film_first/human_insights_example.md)。
 
-### 7. 准备电影稿件模型请求
+### 7. 准备稿件模型请求
 
-项目配置、场景地图、解读卡和事实来源准备完成后运行：
+`FILM_FIRST` 或 `FOOTAGE_FIRST` 项目的配置、场景地图和事实来源准备完成后运行：
 
 ```bash
 footage-agent film-draft \
@@ -193,7 +193,18 @@ footage-agent film-draft \
   --output artifacts/movie-demo/draft-package
 ```
 
-默认从项目配置所在目录寻找同项目的 `scene_map.csv`、`human_insights.md` 和 `fact_sources.csv`，并使用仓库内的严格提示词、写稿规范和旧稿风格配置。需要完整重新核对原片指纹时增加 `--verify-source-hash`。
+默认从项目配置所在目录寻找同项目的 `scene_map.csv` 和 `fact_sources.csv`；电影模式还会读取 `human_insights.md`。两种模式分别使用电影或实拍风格配置，并共享严格提示词和写稿规范。需要完整重新核对源文件指纹时增加 `--verify-source-hash`。
+
+向外部模型发送私人素材的文字摘要时，建议生成脱敏请求包：
+
+```bash
+footage-agent film-draft \
+  artifacts/footage-demo/footage_demo_PART30_project.json \
+  --output artifacts/footage-demo/draft-package-redacted \
+  --redact-local-paths
+```
+
+`--redact-local-paths` 只影响模型可见的 `draft_context.json` 和 `draft_request.md`：绝对路径缩短为文件名，源文件 SHA-256 改为 `REDACTED`。本地输入核验和草稿包清单仍保留完整路径及指纹，且不会发送给 provider。
 
 本命令当前使用 `PREPARE_ONLY` 模式，不调用在线模型，也不生成伪装成成稿的旁白。输入完备时输出：
 
@@ -249,12 +260,14 @@ footage-agent film-generate \
   --output artifacts/movie-demo/generated-v1 \
   --provider deepseek \
   --model deepseek-v4-flash \
-  --thinking enabled \
-  --reasoning-effort high \
-  --max-output-tokens 50000
+  --thinking disabled \
+  --max-output-tokens 20000 \
+  --raw-response artifacts/movie-demo/deepseek-response.txt
 ```
 
-DeepSeek provider 固定连接 `https://api.deepseek.com`，使用 OpenAI-compatible Chat Completions。`--thinking` 可以是 `enabled` 或 `disabled`；省略时采用 DeepSeek 的服务端默认值。思考开启时，`--reasoning-effort` 只接受 `low`、`high` 或 `max`；思考关闭时不要传 reasoning effort。`--verbosity` 只适用于 OpenAI provider。
+DeepSeek provider 固定连接 `https://api.deepseek.com`，使用 OpenAI-compatible Chat Completions。`--thinking` 可以是 `enabled` 或 `disabled`；省略时采用 DeepSeek 的服务端默认值。思考开启时，`--reasoning-effort` 只接受 `low`、`high` 或 `max`；思考关闭时不要传 reasoning effort。严格六文件任务通常优先关闭思考，把输出预算留给最终文件；任何 `finish_reason=length` 响应都会被拒绝。`--verbosity` 只适用于 OpenAI provider。
+
+`--raw-response` 会在跨文件验收前把完整模型响应保存到指定本地文件。即使模型只漏了分隔符或计数，仍可离线检查和修复，不必再次付费调用。该文件可能包含项目文字上下文，应继续保存在 Git 忽略的 `artifacts/` 中。
 
 模型响应只有在以下检查全部通过后才会写入目标目录：
 

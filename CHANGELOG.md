@@ -12,6 +12,8 @@
 - Added `film-draft` in explicit `PREPARE_ONLY` mode to validate film inputs and build a traceable, self-contained model request package without claiming a draft was generated.
 - Added provider-neutral `film-generate` with an optional OpenAI Responses API adapter, offline response-file mode, strict six-file cross-validation, generation receipts, and atomic non-overwriting output.
 - Added a DeepSeek OpenAI-compatible Chat Completions provider with isolated credentials, explicit V4 model validation, thinking controls, and incomplete-response rejection.
+- Extended draft preparation and six-file validation to support `FOOTAGE_FIRST` projects without applying film-only gates.
+- Added a footage-first travel/museum style profile, optional model-context path/hash redaction, and pre-validation raw response capture for recoverable provider formatting errors.
 
 ## 0.1.0
 

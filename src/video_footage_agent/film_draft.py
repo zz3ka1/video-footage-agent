@@ -1,4 +1,4 @@
-"""Validate film-first inputs and build a self-contained model draft package."""
+"""Validate script inputs and build a self-contained model draft package."""
 
 from __future__ import annotations
 
@@ -183,6 +183,23 @@ def _input_record(role: str, path: Path) -> dict[str, Any]:
     }
 
 
+def _redact_remote_context(value: Any, key: str = "") -> Any:
+    """Remove local path prefixes and file hashes from model-visible context."""
+
+    if isinstance(value, dict):
+        return {
+            item_key: _redact_remote_context(item_value, item_key)
+            for item_key, item_value in value.items()
+        }
+    if isinstance(value, list):
+        return [_redact_remote_context(item, key) for item in value]
+    if key == "sha256" and isinstance(value, str) and value:
+        return "REDACTED"
+    if isinstance(value, str) and Path(value).is_absolute():
+        return Path(value).name
+    return value
+
+
 def prepare_film_draft(
     project_config: Path,
     output: Path,
@@ -194,6 +211,7 @@ def prepare_film_draft(
     strict_prompt: Path | None = None,
     style_guide: Path | None = None,
     verify_source_hash: bool = False,
+    redact_local_paths: bool = False,
 ) -> dict[str, Any]:
     """Prepare a traceable draft package without invoking an online model."""
 
@@ -204,9 +222,8 @@ def prepare_film_draft(
 
     project_data = _read_json_object(project_config, "project config")
     project = project_data.get("project")
-    film = project_data.get("film")
-    if not isinstance(project, dict) or not isinstance(film, dict):
-        raise ValueError("project config must contain project and film objects")
+    if not isinstance(project, dict):
+        raise ValueError("project config must contain a project object")
 
     project_id = project.get("project_id")
     part_id = project.get("part_id")
@@ -214,23 +231,35 @@ def prepare_film_draft(
         raise ValueError("project.project_id is required")
     if not isinstance(part_id, str) or not part_id:
         raise ValueError("project.part_id is required")
-    if project.get("task_mode") != "FILM_FIRST":
-        raise ValueError("film-draft only accepts task_mode=FILM_FIRST")
+    task_mode = project.get("task_mode")
+    if task_mode not in {"FILM_FIRST", "FOOTAGE_FIRST"}:
+        raise ValueError(
+            "draft preparation accepts task_mode=FILM_FIRST or FOOTAGE_FIRST"
+        )
+
+    film = project_data.get("film")
+    footage = project_data.get("footage")
+    if task_mode == "FILM_FIRST" and not isinstance(film, dict):
+        raise ValueError("FILM_FIRST project config must contain a film object")
+    if task_mode == "FOOTAGE_FIRST" and not isinstance(footage, dict):
+        raise ValueError("FOOTAGE_FIRST project config must contain a footage object")
 
     stem = f"{project_id}_{part_id}"
     project_dir = project_config.parent
+    default_style_profile = (
+        _default_repo_path("examples", "film_first", "legacy_longform_style.json")
+        if task_mode == "FILM_FIRST"
+        else _default_repo_path("examples", "footage_first", "travel_style.json")
+    )
     paths = {
         "project_config": project_config,
         "scene_map": _resolve_input(scene_map, project_dir / f"{stem}_scene_map.csv"),
-        "human_insights": _resolve_input(
-            human_insights, project_dir / f"{stem}_human_insights.md"
-        ),
         "fact_sources": _resolve_input(
             fact_sources, project_dir / f"{stem}_fact_sources.csv"
         ),
         "style_profile": _resolve_input(
             style_profile,
-            _default_repo_path("examples", "film_first", "legacy_longform_style.json"),
+            default_style_profile,
         ),
         "strict_prompt": _resolve_input(
             strict_prompt,
@@ -241,6 +270,10 @@ def prepare_film_draft(
             _default_repo_path("docs", "script-style-guide.zh-CN.md"),
         ),
     }
+    if task_mode == "FILM_FIRST":
+        paths["human_insights"] = _resolve_input(
+            human_insights, project_dir / f"{stem}_human_insights.md"
+        )
 
     blockers: list[str] = []
     warnings: list[str] = []
@@ -248,9 +281,11 @@ def prepare_film_draft(
         if not path.is_file():
             blockers.append(f"缺少 {role}：{path}。")
 
-    source = film.get("source")
+    source_container = film if task_mode == "FILM_FIRST" else footage
+    source_label = "电影原片" if task_mode == "FILM_FIRST" else "本地实拍素材"
+    source = source_container.get("source") if isinstance(source_container, dict) else None
     if not isinstance(source, dict) or source.get("status") != "AVAILABLE":
-        blockers.append("项目没有状态为 AVAILABLE 的电影原片。")
+        blockers.append(f"项目没有状态为 AVAILABLE 的{source_label}。")
         source_path = None
     else:
         raw_source_path = source.get("path")
@@ -260,13 +295,13 @@ def prepare_film_draft(
             else None
         )
         if source_path is None or not source_path.is_file():
-            blockers.append("项目记录的电影原片路径当前不可访问。")
+            blockers.append(f"项目记录的{source_label}路径当前不可访问。")
         else:
             expected_size = source.get("size_bytes")
             if not isinstance(expected_size, int) or isinstance(expected_size, bool):
-                blockers.append("项目没有记录有效的电影原片文件大小。")
+                blockers.append(f"项目没有记录有效的{source_label}文件大小。")
             elif source_path.stat().st_size != expected_size:
-                blockers.append("电影原片大小与 film-init 记录不一致。")
+                blockers.append(f"{source_label}大小与项目配置记录不一致。")
             recorded_hash = source.get("sha256")
             if not isinstance(recorded_hash, str) or (
                 len(recorded_hash) != 64
@@ -277,23 +312,26 @@ def prepare_film_draft(
                 blockers.append("项目没有有效的电影原片 SHA-256 指纹。")
             elif verify_source_hash:
                 if _sha256(source_path) != recorded_hash:
-                    blockers.append("电影原片 SHA-256 与 film-init 记录不一致。")
+                    blockers.append(f"{source_label} SHA-256 与项目配置记录不一致。")
             else:
-                warnings.append("本次只核对原片路径和大小；未重新计算 SHA-256。")
+                warnings.append(
+                    f"本次只核对{source_label}路径和大小；未重新计算 SHA-256。"
+                )
 
-    film_title = film.get("film_title")
-    original_title = film.get("film_original_title")
-    release_year = film.get("film_release_year")
-    if not isinstance(film_title, str) or not film_title.strip():
-        blockers.append("film_title 不能为空。")
-    if not isinstance(original_title, str) or not original_title.strip():
-        blockers.append("film_original_title 不能为空。")
-    if (
-        not isinstance(release_year, int)
-        or isinstance(release_year, bool)
-        or release_year <= 0
-    ):
-        blockers.append("film_release_year 必须是正整数。")
+    if task_mode == "FILM_FIRST":
+        film_title = film.get("film_title")
+        original_title = film.get("film_original_title")
+        release_year = film.get("film_release_year")
+        if not isinstance(film_title, str) or not film_title.strip():
+            blockers.append("film_title 不能为空。")
+        if not isinstance(original_title, str) or not original_title.strip():
+            blockers.append("film_original_title 不能为空。")
+        if (
+            not isinstance(release_year, int)
+            or isinstance(release_year, bool)
+            or release_year <= 0
+        ):
+            blockers.append("film_release_year 必须是正整数。")
     source_duration = (
         source.get("duration_seconds") if isinstance(source, dict) else None
     )
@@ -302,21 +340,27 @@ def prepare_film_draft(
         or isinstance(source_duration, bool)
         or source_duration <= 0
     ):
-        blockers.append("项目没有记录有效的电影原片总时长。")
+        blockers.append(f"项目没有记录有效的{source_label}总时长。")
 
-    if film.get("film_analysis_coverage") in {None, "", "UNKNOWN", "NOT_STARTED"}:
-        blockers.append("film_analysis_coverage 尚未完成。")
-    if film.get("spoiler_policy") not in SPOILER_POLICIES:
-        blockers.append("spoiler_policy 尚未确认或使用了非法值。")
-    if film.get("film_clip_policy") in {None, "", "UNKNOWN"}:
-        blockers.append("film_clip_policy 尚未确认。")
-    max_web_assets = film.get("max_web_assets")
-    if (
-        not isinstance(max_web_assets, int)
-        or isinstance(max_web_assets, bool)
-        or max_web_assets < 0
-    ):
-        blockers.append("max_web_assets 必须是非负整数。")
+    if task_mode == "FILM_FIRST":
+        if film.get("film_analysis_coverage") in {
+            None,
+            "",
+            "UNKNOWN",
+            "NOT_STARTED",
+        }:
+            blockers.append("film_analysis_coverage 尚未完成。")
+        if film.get("spoiler_policy") not in SPOILER_POLICIES:
+            blockers.append("spoiler_policy 尚未确认或使用了非法值。")
+        if film.get("film_clip_policy") in {None, "", "UNKNOWN"}:
+            blockers.append("film_clip_policy 尚未确认。")
+        max_web_assets = film.get("max_web_assets")
+        if (
+            not isinstance(max_web_assets, int)
+            or isinstance(max_web_assets, bool)
+            or max_web_assets < 0
+        ):
+            blockers.append("max_web_assets 必须是非负整数。")
 
     scene_rows: list[dict[str, str]] = []
     fact_rows: list[dict[str, str]] = []
@@ -333,7 +377,10 @@ def prepare_film_draft(
             )
             scene_map_valid = True
             _validate_scene_rows(scene_rows, blockers, warnings)
-            if part_id == "FULL" and isinstance(source_duration, (int, float)):
+            if (
+                (part_id == "FULL" or task_mode == "FOOTAGE_FIRST")
+                and isinstance(source_duration, (int, float))
+            ):
                 _validate_full_coverage(scene_rows, float(source_duration), blockers)
         except ValueError as exc:
             blockers.append(str(exc))
@@ -345,7 +392,11 @@ def prepare_film_draft(
             _validate_fact_rows(fact_rows, blockers, warnings)
         except ValueError as exc:
             blockers.append(str(exc))
-    if paths["human_insights"].is_file() and paths["scene_map"].is_file():
+    if (
+        task_mode == "FILM_FIRST"
+        and paths["human_insights"].is_file()
+        and paths["scene_map"].is_file()
+    ):
         try:
             insight_cards = load_human_insight_cards(
                 paths["human_insights"],
@@ -420,14 +471,16 @@ def prepare_film_draft(
                 "fact_sources": fact_rows,
                 "style_profile": style_data,
             }
+            if redact_local_paths:
+                context = _redact_remote_context(context)
             context_json = json.dumps(context, ensure_ascii=False, indent=2)
             context_path = output / "draft_context.json"
             context_path.write_text(context_json + "\n", encoding="utf-8")
 
-            request = f"""# 电影稿件模型请求包
+            request = f"""# 视频稿件模型请求包
 
 本文件由 `film-draft` 的 `PREPARE_ONLY` 模式生成，尚未调用模型。
-只允许依据下方结构化输入写稿；不得声称直接读取了本文件未包含的电影画面。
+只允许依据下方结构化输入写稿；不得声称直接读取了本文件未包含的画面或原声。
 
 ## 严格提示词
 
@@ -442,6 +495,12 @@ def prepare_film_draft(
 ```json
 {context_json}
 ```
+
+## 最终输出硬约束
+
+响应的第一行必须是第一个`===FILE: 文件名===`标记，最后一行必须是最后一个
+`===END FILE===`标记。禁止在文件区块前后添加说明、问候、总结、Markdown代码围栏
+或任何其他文字。只能输出六个规定文件区块。
 """
             request_path = output / "draft_request.md"
             request_path.write_text(request, encoding="utf-8")
@@ -455,7 +514,11 @@ def prepare_film_draft(
             if source_path is not None and source_path.is_file():
                 input_records.append(
                     {
-                        "role": "film_source",
+                        "role": (
+                            "film_source"
+                            if task_mode == "FILM_FIRST"
+                            else "footage_source"
+                        ),
                         "path": str(source_path),
                         "size_bytes": source_path.stat().st_size,
                         "sha256": source.get("sha256", ""),

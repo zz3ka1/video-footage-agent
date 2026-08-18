@@ -575,12 +575,17 @@ def validate_generated_files(
     project_root = context.get("project")
     project = project_root.get("project") if isinstance(project_root, dict) else None
     film = project_root.get("film") if isinstance(project_root, dict) else None
-    if not isinstance(project, dict) or not isinstance(film, dict):
-        raise ValueError("draft_context.json must contain project.project and project.film")
+    if not isinstance(project, dict):
+        raise ValueError("draft_context.json must contain project.project")
     project_id = _string_value(project.get("project_id"))
     part_id = _string_value(project.get("part_id"))
     if not project_id or not part_id:
         raise ValueError("draft context is missing project_id or part_id")
+    task_mode = _string_value(project.get("task_mode"))
+    if task_mode not in {"FILM_FIRST", "FOOTAGE_FIRST"}:
+        raise ValueError("draft context has unsupported task_mode")
+    if task_mode == "FILM_FIRST" and not isinstance(film, dict):
+        raise ValueError("FILM_FIRST draft context must contain project.film")
 
     names = _expected_names(project_id, part_id)
     expected = set(names.values())
@@ -599,7 +604,7 @@ def validate_generated_files(
     for key, expected_value in {
         "project_id": project_id,
         "part_id": part_id,
-        "task_mode": "FILM_FIRST",
+        "task_mode": task_mode,
         "version": "1",
     }.items():
         if front.get(key) != expected_value:
@@ -657,7 +662,7 @@ def validate_generated_files(
         "project_id": project_id,
         "part_id": part_id,
         "run_status": run_status,
-        "task_mode": "FILM_FIRST",
+        "task_mode": task_mode,
         "prompt_version": prompt_version,
         "style_guide_version": style_version,
     }.items():
@@ -701,16 +706,29 @@ def validate_generated_files(
     if not isinstance(manifest_film, dict):
         issues.append("run_manifest.film 必须是 object。")
         manifest_film = {}
-    max_web_assets = film.get("max_web_assets")
-    source = film.get("source")
-    expected_film_values = {
-        "title": film.get("film_title"),
-        "original_title": film.get("film_original_title"),
-        "release_year": str(film.get("film_release_year", "")),
-        "source_duration": source.get("duration") if isinstance(source, dict) else "",
-        "analysis_coverage": film.get("film_analysis_coverage", ""),
-        "spoiler_policy": film.get("spoiler_policy", ""),
-    }
+    if task_mode == "FILM_FIRST":
+        max_web_assets = film.get("max_web_assets")
+        source = film.get("source")
+        expected_film_values = {
+            "title": film.get("film_title"),
+            "original_title": film.get("film_original_title"),
+            "release_year": str(film.get("film_release_year", "")),
+            "source_duration": (
+                source.get("duration") if isinstance(source, dict) else ""
+            ),
+            "analysis_coverage": film.get("film_analysis_coverage", ""),
+            "spoiler_policy": film.get("spoiler_policy", ""),
+        }
+    else:
+        max_web_assets = None
+        expected_film_values = {
+            "title": "",
+            "original_title": "",
+            "release_year": "",
+            "source_duration": "",
+            "analysis_coverage": "",
+            "spoiler_policy": "",
+        }
     for key, expected_value in expected_film_values.items():
         if manifest_film.get(key) != expected_value:
             issues.append(
@@ -718,9 +736,14 @@ def validate_generated_files(
             )
     if manifest_film.get("max_web_assets") != max_web_assets:
         issues.append("run_manifest.film.max_web_assets 与项目配置不一致。")
-    if manifest_film.get("selected_web_assets") != web_assets:
-        issues.append("run_manifest.film.selected_web_assets 与剪辑索引不一致。")
-    if isinstance(max_web_assets, int) and web_assets > max_web_assets:
+    expected_selected_film_assets = web_assets if task_mode == "FILM_FIRST" else 0
+    if manifest_film.get("selected_web_assets") != expected_selected_film_assets:
+        issues.append("run_manifest.film.selected_web_assets 与当前任务模式不一致。")
+    if (
+        task_mode == "FILM_FIRST"
+        and isinstance(max_web_assets, int)
+        and web_assets > max_web_assets
+    ):
         issues.append(
             f"网络素材共 {web_assets} 个，超过项目上限 {max_web_assets} 个。"
         )
@@ -729,19 +752,25 @@ def validate_generated_files(
     if not isinstance(quality_gates, dict):
         issues.append("run_manifest.quality_gates 必须是 object。")
         quality_gates = {}
-    required_gates = {
+    common_required_gates = {
         "facts_traceable",
         "assets_traceable",
         "terminology_checked",
         "licenses_checked",
         "continuity_checked",
-        "film_coverage_checked",
-        "cast_mapping_checked",
-        "clip_policy_checked",
         "human_insights_checked",
         "clean_script_allowed",
     }
-    for gate in sorted(required_gates):
+    film_required_gates = {
+        "film_coverage_checked",
+        "cast_mapping_checked",
+        "clip_policy_checked",
+    }
+    all_gates = common_required_gates | film_required_gates
+    readiness_gates = common_required_gates | (
+        film_required_gates if task_mode == "FILM_FIRST" else set()
+    )
+    for gate in sorted(all_gates):
         if not isinstance(quality_gates.get(gate), bool):
             issues.append(f"run_manifest.quality_gates.{gate} 必须是布尔值。")
 
@@ -762,7 +791,7 @@ def validate_generated_files(
                 issues.append(f"录制净稿仍含{label}。")
         if blocking_reviews:
             issues.append("READY_TO_RECORD 仍包含阻塞人工复核项。")
-        for gate in sorted(required_gates):
+        for gate in sorted(readiness_gates):
             if quality_gates.get(gate) is not True:
                 issues.append(f"READY_TO_RECORD 要求质量门 {gate}=true。")
         if duration.get("calibrated") is not True:
@@ -850,14 +879,25 @@ def generate_film_draft(
     output: Path,
     *,
     provider: TextGenerationProvider,
+    raw_response_path: Path | None = None,
 ) -> dict[str, Any]:
     """Invoke a provider, validate all outputs, and atomically write six files."""
 
     output = output.expanduser().resolve()
     if output.exists():
         raise FileExistsError(output)
+    raw_response = (
+        raw_response_path.expanduser().resolve()
+        if raw_response_path is not None
+        else None
+    )
+    if raw_response is not None and raw_response.exists():
+        raise FileExistsError(raw_response)
     request, context = _load_draft_package(draft_package)
     response = provider.generate(request)
+    if raw_response is not None:
+        raw_response.parent.mkdir(parents=True, exist_ok=True)
+        raw_response.write_text(response.text, encoding="utf-8")
     files = parse_six_file_response(response.text)
     files, warnings = validate_generated_files(files, context)
 

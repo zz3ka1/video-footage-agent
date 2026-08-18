@@ -14,6 +14,7 @@ from video_footage_agent.film_generate import (
     OpenAIResponsesProvider,
     generate_film_draft,
     parse_six_file_response,
+    validate_generated_files,
 )
 from video_footage_agent.film_project import EDITING_INDEX_HEADER, FACT_SOURCES_HEADER
 
@@ -338,6 +339,25 @@ def test_generate_film_draft_validates_and_atomically_writes_six_files(
     assert manifest["generation"]["response_sha256"]
 
 
+def test_generate_film_draft_can_capture_raw_response_before_validation(
+    tmp_path: Path,
+) -> None:
+    package = _draft_package(tmp_path)
+    raw_response = tmp_path / "diagnostics" / "raw.txt"
+    invalid = "Unexpected preamble\n" + _response_text(_valid_files())
+
+    with pytest.raises(ValueError, match="outside file blocks"):
+        generate_film_draft(
+            package,
+            tmp_path / "generated",
+            provider=_FakeProvider(invalid),
+            raw_response_path=raw_response,
+        )
+
+    assert raw_response.read_text(encoding="utf-8") == invalid
+    assert not (tmp_path / "generated").exists()
+
+
 def test_generate_film_draft_rejects_partial_response_without_writing(
     tmp_path: Path,
 ) -> None:
@@ -368,6 +388,48 @@ def test_generate_film_draft_accepts_ready_package_that_passes_every_gate(
     assert (output / "movie_demo_FULL_script_clean.md").read_text(
         encoding="utf-8"
     ).startswith("# 示例电影")
+
+
+def test_validate_generated_files_accepts_ready_footage_without_film_gates(
+    tmp_path: Path,
+) -> None:
+    package = _draft_package(tmp_path)
+    context = json.loads(
+        (package / "draft_context.json").read_text(encoding="utf-8")
+    )
+    context["project"]["project"]["task_mode"] = "FOOTAGE_FIRST"
+    files = _ready_files()
+    annotated_name = "movie_demo_FULL_script_annotated.md"
+    editing_name = "movie_demo_FULL_editing_index.csv"
+    facts_name = "movie_demo_FULL_fact_sources.csv"
+    manifest_name = "movie_demo_FULL_run_manifest.json"
+    files[annotated_name] = files[annotated_name].replace(
+        'task_mode: "FILM_FIRST"', 'task_mode: "FOOTAGE_FIRST"'
+    )
+    files[editing_name] = files[editing_name].replace("FILM_SOURCE", "LOCAL_VIDEO")
+    files[facts_name] = files[facts_name].replace("FILM_SOURCE", "LOCAL_VIDEO")
+    manifest = json.loads(files[manifest_name])
+    manifest["task_mode"] = "FOOTAGE_FIRST"
+    manifest["film"] = {
+        "title": "",
+        "original_title": "",
+        "release_year": "",
+        "source_duration": "",
+        "analysis_coverage": "",
+        "spoiler_policy": "",
+        "clip_policy_checked": False,
+        "max_web_assets": None,
+        "selected_web_assets": 0,
+    }
+    manifest["quality_gates"]["film_coverage_checked"] = False
+    manifest["quality_gates"]["cast_mapping_checked"] = False
+    manifest["quality_gates"]["clip_policy_checked"] = False
+    files[manifest_name] = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+
+    validated, warnings = validate_generated_files(files, context)
+
+    assert validated[annotated_name] == files[annotated_name]
+    assert warnings == []
 
 
 def test_generate_film_draft_rejects_internal_marker_in_ready_clean_script(

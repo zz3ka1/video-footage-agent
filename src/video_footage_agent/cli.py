@@ -195,6 +195,11 @@ def build_parser() -> argparse.ArgumentParser:
     film_draft.add_argument("--strict-prompt", type=Path)
     film_draft.add_argument("--style-guide", type=Path)
     film_draft.add_argument("--verify-source-hash", action="store_true")
+    film_draft.add_argument(
+        "--redact-local-paths",
+        action="store_true",
+        help="Remove absolute paths and source hashes from model-visible context",
+    )
     film_draft.set_defaults(handler=_handle_film_draft)
 
     film_generate = subparsers.add_parser(
@@ -233,6 +238,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="OpenAI provider only",
     )
     film_generate.add_argument("--max-output-tokens", type=_positive_int)
+    film_generate.add_argument(
+        "--raw-response",
+        type=Path,
+        help="Optional local capture of the model response before validation",
+    )
     film_generate.set_defaults(handler=_handle_film_generate)
     return parser
 
@@ -377,6 +387,7 @@ def _handle_film_draft(args: argparse.Namespace) -> dict:
         strict_prompt=args.strict_prompt,
         style_guide=args.style_guide,
         verify_source_hash=args.verify_source_hash,
+        redact_local_paths=args.redact_local_paths,
     )
 
 
@@ -428,6 +439,7 @@ def _handle_film_generate(args: argparse.Namespace) -> dict:
         args.draft_package,
         args.output,
         provider=provider,
+        raw_response_path=args.raw_response,
     )
 
 
