@@ -12,6 +12,7 @@ from video_footage_agent.film_generate import (
     DeepSeekChatProvider,
     ModelResponse,
     OpenAIResponsesProvider,
+    build_light_editing_index,
     generate_film_draft,
     parse_six_file_response,
     validate_generated_files,
@@ -317,7 +318,41 @@ class _FakeProvider:
         )
 
 
-def test_generate_film_draft_validates_and_atomically_writes_six_files(
+def test_build_light_editing_index_keeps_only_user_facing_fields() -> None:
+    stream = io.StringIO(newline="")
+    writer = csv.writer(stream, lineterminator="\n")
+    writer.writerow(EDITING_INDEX_HEADER)
+    rows = [
+        {
+            "asset_id": "FULL-VID-01",
+            "source_kind": "LOCAL_VIDEO",
+            "source_file_or_url": "/private/source.mp4",
+            "source_in": "00:00:01",
+            "source_out": "00:00:05",
+            "duration_s": "4",
+            "suggested_use": "开场",
+        },
+        {
+            "asset_id": "FULL-WEB-01",
+            "source_kind": "WEB_IMAGE",
+            "source_file_or_url": "https://example.com/midway.jpg",
+            "duration_s": "4.0",
+            "suggested_use": "历史背景",
+        },
+    ]
+    for values in rows:
+        writer.writerow([values.get(field, "") for field in EDITING_INDEX_HEADER])
+
+    light_rows = list(csv.reader(io.StringIO(build_light_editing_index(stream.getvalue()))))
+
+    assert light_rows == [
+        ["素材编号", "素材文件或网址", "使用范围", "插入位置"],
+        ["FULL-VID-01", "source.mp4", "00:00:01–00:00:05", "开场"],
+        ["FULL-WEB-01", "https://example.com/midway.jpg", "4秒", "历史背景"],
+    ]
+
+
+def test_generate_film_draft_writes_six_model_files_and_light_index(
     tmp_path: Path,
 ) -> None:
     package = _draft_package(tmp_path)
@@ -328,15 +363,21 @@ def test_generate_film_draft_validates_and_atomically_writes_six_files(
 
     assert result["mode"] == "GENERATED"
     assert result["run_status"] == "REVIEW_REQUIRED"
-    assert len(result["files"]) == 6
+    assert len(result["files"]) == 7
     assert provider.request == "# deterministic test request\n"
-    assert len(list(output.iterdir())) == 6
+    assert len(list(output.iterdir())) == 7
+    light_index = output / "movie_demo_FULL_editing_index_light.csv"
+    assert list(csv.reader(light_index.open(encoding="utf-8"))) == [
+        ["素材编号", "素材文件或网址", "使用范围", "插入位置"],
+        ["FULL-VID-01", "source.mp4", "00:00:01–00:00:05", "开场"],
+    ]
     manifest = json.loads(
         (output / "movie_demo_FULL_run_manifest.json").read_text(encoding="utf-8")
     )
     assert manifest["generation"]["provider"] == "fake"
     assert manifest["generation"]["response_id"] == "resp_test"
     assert manifest["generation"]["response_sha256"]
+    assert manifest["derived_outputs"] == ["movie_demo_FULL_editing_index_light.csv"]
 
 
 def test_generate_film_draft_can_capture_raw_response_before_validation(

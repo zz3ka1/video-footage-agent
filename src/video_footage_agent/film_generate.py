@@ -1,4 +1,4 @@
-"""Generate and validate the six-file film script delivery package."""
+"""Generate and validate the script package plus a derived lightweight index."""
 
 from __future__ import annotations
 
@@ -69,6 +69,7 @@ FACT_STATUSES = {
     "OMIT",
 }
 READY_FACT_STATUSES = {"VERIFIED", "LOCAL_CONFIRMED"}
+LIGHT_EDITING_INDEX_HEADER = ["素材编号", "素材文件或网址", "使用范围", "插入位置"]
 DEEPSEEK_MODELS = {"deepseek-v4-flash", "deepseek-v4-pro"}
 DEEPSEEK_REASONING_EFFORTS = {None, "low", "high", "max"}
 NOT_READY_CLEAN_SCRIPT = (
@@ -337,6 +338,54 @@ def _expected_names(project_id: str, part_id: str) -> dict[str, str]:
         "review": f"{stem}_review_queue.md",
         "manifest": f"{stem}_run_manifest.json",
     }
+
+
+def _light_editing_index_name(project_id: str, part_id: str) -> str:
+    return f"{project_id}_{part_id}_editing_index_light.csv"
+
+
+def _compact_light_source(row: dict[str, str]) -> str:
+    source = row["source_file_or_url"].strip()
+    if not source:
+        return row["source_kind"].strip()
+    if re.match(r"https?://", source, re.IGNORECASE):
+        return source
+    return Path(source).name
+
+
+def _compact_duration_seconds(value: str) -> str:
+    duration = float(value)
+    return str(int(duration)) if duration.is_integer() else str(duration)
+
+
+def build_light_editing_index(content: str) -> str:
+    """Derive the four-column user-facing editing index from a validated index."""
+
+    reader = csv.DictReader(io.StringIO(content))
+    if reader.fieldnames != EDITING_INDEX_HEADER:
+        raise ValueError("editing_index.csv header does not match the expected schema")
+    stream = io.StringIO(newline="")
+    writer = csv.writer(stream, lineterminator="\n")
+    writer.writerow(LIGHT_EDITING_INDEX_HEADER)
+    for row in reader:
+        source_in = row["source_in"].strip()
+        source_out = row["source_out"].strip()
+        duration = row["duration_s"].strip()
+        if source_in and source_out:
+            usage_range = f"{source_in}–{source_out}"
+        elif duration:
+            usage_range = f"{_compact_duration_seconds(duration)}秒"
+        else:
+            usage_range = ""
+        writer.writerow(
+            [
+                row["asset_id"].strip(),
+                _compact_light_source(row),
+                usage_range,
+                row["suggested_use"].strip(),
+            ]
+        )
+    return stream.getvalue()
 
 
 def parse_six_file_response(text: str) -> dict[str, str]:
@@ -881,7 +930,7 @@ def generate_film_draft(
     provider: TextGenerationProvider,
     raw_response_path: Path | None = None,
 ) -> dict[str, Any]:
-    """Invoke a provider, validate all outputs, and atomically write six files."""
+    """Validate six model files and atomically add a lightweight editing index."""
 
     output = output.expanduser().resolve()
     if output.exists():
@@ -904,6 +953,8 @@ def generate_film_draft(
     project_id = _string_value(_context_project_value(context, "project_id"))
     part_id = _string_value(_context_project_value(context, "part_id"))
     names = _expected_names(project_id, part_id)
+    light_index_name = _light_editing_index_name(project_id, part_id)
+    light_index = build_light_editing_index(files[names["editing"]])
     manifest_name = names["manifest"]
     manifest = json.loads(files[manifest_name])
     receipt = {
@@ -917,16 +968,18 @@ def generate_film_draft(
         "usage": response.usage,
     }
     manifest["generation"] = receipt
+    manifest["derived_outputs"] = [light_index_name]
     files[manifest_name] = json.dumps(manifest, ensure_ascii=False, indent=2) + "\n"
+    deliverable_names = [*names.values(), light_index_name]
 
     output.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(
         tempfile.mkdtemp(prefix=f".{output.name}-", dir=str(output.parent))
     )
     try:
-        for filename in names.values():
+        for filename in deliverable_names:
             destination = temporary / filename
-            content = files[filename]
+            content = light_index if filename == light_index_name else files[filename]
             if not content.endswith("\n"):
                 content += "\n"
             destination.write_text(content, encoding="utf-8")
@@ -945,5 +998,5 @@ def generate_film_draft(
         "run_status": manifest.get("run_status"),
         "output": str(output),
         "warnings": warnings,
-        "files": [str(output / filename) for filename in names.values()],
+        "files": [str(output / filename) for filename in deliverable_names],
     }

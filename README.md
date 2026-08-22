@@ -280,6 +280,8 @@ DeepSeek provider 固定连接 `https://api.deepseek.com`，使用 OpenAI-compat
 
 目标目录已存在时命令会停止。模型响应无效时也不会创建半成品目录。成功后，`run_manifest.json` 会增加 provider、实际返回模型、响应 ID、请求/响应 SHA-256 和 token usage（若 provider 返回）的生成记录。API Key 和 DeepSeek 的思考内容都不会写入交付文件。
 
+六个标准文件验收通过后，工作流还会从完整剪辑索引自动派生 `{project_id}_{part_id}_editing_index_light.csv`。轻量版只有“素材编号、素材文件或网址、使用范围、插入位置”四列，不要求模型额外生成，也不改变六文件验收协议。
+
 如果已经从其他工具取得了符合 `===FILE: ...===` 协议的完整响应，可以只运行同一套离线验收，不发起 API 请求：
 
 ```bash
